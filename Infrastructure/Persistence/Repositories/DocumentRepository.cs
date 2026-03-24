@@ -19,7 +19,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             _metadata = database.GetCollection<Metadata>("Metadata");
         }
 
-        // =========================================================
+        // ========================================================= 
         // CREATE
         // =========================================================
         public async Task CreateAsync(Document document)
@@ -55,6 +55,16 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         {
             return await _documents
                 .Find(_ => true)
+                .ToListAsync();
+        }
+
+        public async Task<List<Document>> GetByIdsAsync(IReadOnlyCollection<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return new List<Document>();
+
+            return await _documents
+                .Find(Builders<Document>.Filter.In(document => document.Id, ids))
                 .ToListAsync();
         }
 

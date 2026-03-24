@@ -9,5 +9,7 @@
         public DateTime? ToDate { get; set; } 
         public string? SortBy { get; set; }     // Title, CreatedAt, etc.
         public bool Desc { get; set; } = false; // ترتيب عكسي
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
 }

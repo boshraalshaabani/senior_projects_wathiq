@@ -15,18 +15,20 @@ namespace eArchiveSystem.Presentation.Controllers
         private readonly IMetadataRepository _metadata;
         private readonly IRuleBasedAnalyzer _analyzer;
         private readonly ITextPreprocessorService _preprocessor;
-
+        private readonly IIndexingService _indexingService;
 
         public OcrCallbackController(
             IDocumentRepository documents,
             IMetadataRepository metadata,
              IRuleBasedAnalyzer analyzer,
-              ITextPreprocessorService preprocessor)
+              ITextPreprocessorService preprocessor,
+              IIndexingService indexingService)
         {
             _documents = documents;
             _metadata = metadata;
             _analyzer = analyzer;
             _preprocessor = preprocessor;
+            _indexingService = indexingService;
         }
         [AllowAnonymous]
         [HttpPost("callback")]
@@ -71,6 +73,8 @@ namespace eArchiveSystem.Presentation.Controllers
                 cleaned,
                 doc.Department
             );
+
+            await _indexingService.SyncDocumentAsync(documentId);
 
             return Ok("OCR processed successfully");
         }
