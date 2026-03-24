@@ -22,6 +22,7 @@ namespace eArchiveSystem.Application.Services
         private readonly IAuditService _audit; // logging
         private readonly HttpClient _httpClient; // OCR
         private readonly IConfiguration _config; // URLs
+        private readonly IIndexingService _indexing;
 
 
 
@@ -31,8 +32,9 @@ namespace eArchiveSystem.Application.Services
                                IUserRepository users,
                                IMetadataRepository metadata,
                                IAuditService audit,
-                                HttpClient httpClient,
-                                IConfiguration config)
+                               HttpClient httpClient,
+                               IConfiguration config,
+                               IIndexingService indexing)
         {
             _documents = documents;
             _hashCalculator = hashCalculator;
@@ -42,6 +44,7 @@ namespace eArchiveSystem.Application.Services
             _audit = audit;
             _httpClient = httpClient;
             _config = config;
+            _indexing = indexing;
         }
         // ==================================================
         //  ROLE PERMISSIONS (صلاحيات)
@@ -136,8 +139,11 @@ namespace eArchiveSystem.Application.Services
             };
           
             await _documents.CreateAsync(doc);
-          
-            if (!System.IO.File.Exists(savedPath))
+
+            
+
+                var fullSavedPath = Path.Combine(Directory.GetCurrentDirectory(), savedPath);
+            if (!System.IO.File.Exists(fullSavedPath))
                 throw new Exception("Saved PDF not found");
 
             // Trigger OCR (async)
@@ -148,7 +154,7 @@ namespace eArchiveSystem.Application.Services
                     new
                     {
                         documentId = doc.Id,
-                        filePath = savedPath,
+                        filePath = fullSavedPath,
                         callbackUrl = $"{_config["App:BaseUrl"]}/api/ocr/callback?documentId={doc.Id}"
                     }
                 );
@@ -158,8 +164,6 @@ namespace eArchiveSystem.Application.Services
                 Console.WriteLine(" OCR CALL FAILED: " + ex.Message);
                 // لا ترجع Error – الوثيقة انحفظت
             }
-
-
 
             // Audit log
             await _audit.LogAsync(
@@ -295,6 +299,8 @@ namespace eArchiveSystem.Application.Services
             if (!string.IsNullOrWhiteSpace(dto.Title))
                 doc.Title = dto.Title;
 
+            var fileWasReplaced = false;
+
             if (dto.File != null)
             {
                 var newHash = await _hashCalculator.ComputeHashAsync(dto.File);
@@ -321,11 +327,46 @@ namespace eArchiveSystem.Application.Services
                 doc.Size = dto.File.Length;
                 doc.FileHash = newHash;
                 doc.FilePath = newPath;
+                doc.Content = null;
+                fileWasReplaced = true;
             }
 
             doc.UpdatedAt = DateTime.UtcNow;
 
             await _documents.UpdateAsync(documentId, doc);
+
+            if (fileWasReplaced)
+            {
+                await _indexing.RemoveDocumentAsync(documentId);
+
+                try
+                {
+                    var response = await _httpClient.PostAsJsonAsync(
+                        $"{_config["OcrService:BaseUrl"]}/api/ocr/process",
+                        new
+                        {
+                            documentId = doc.Id,
+                            filePath = Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath),
+                            callbackUrl = $"{_config["App:BaseUrl"]}/api/ocr/callback?documentId={doc.Id}"
+                        }
+                    );
+                    Console.WriteLine("OCR STATUS: " + response.StatusCode);
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine("OCR RESPONSE: " + content);
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(" OCR CALL FAILED AFTER UPDATE: " + ex.Message);
+                }
+            }
+            else
+            {
+                await _documents.AttachMetadataAsync(documentId);
+              
+                await _indexing.SyncDocumentAsync(documentId);
+            }
 
             await _audit.LogAsync(userId, role, "UpdateDocument", documentId,
                 $"User {userId} updated document {documentId}");
@@ -372,6 +413,8 @@ namespace eArchiveSystem.Application.Services
             var deleted = await _documents.DeleteAsync(doc.Id);
             if (!deleted)
                 return false;
+
+            await _indexing.RemoveDocumentAsync(doc.Id);
 
             // 6️⃣ تسجيل العملية في Audit Log
             await _audit.LogAsync(

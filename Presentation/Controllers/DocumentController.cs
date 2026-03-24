@@ -4,7 +4,6 @@ using eArchiveSystem.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Data;
-using System.Net.Http;
 using System.Security.Claims;
 
 namespace eArchiveSystem.Presentation.Controllers
@@ -16,22 +15,15 @@ namespace eArchiveSystem.Presentation.Controllers
         private readonly IDocumentService _documentService;
         private readonly IMetadataService _metadataService;
         private readonly ISearchService _searchService;
-        private readonly HttpClient _httpClient;
-        private readonly IWebHostEnvironment _env;
 
 
         public DocumentController(IDocumentService documentService,
                                   IMetadataService metadataService,
-                                   ISearchService searchService,
-                                    HttpClient httpClient,
-                                    IWebHostEnvironment env
-                                   )
+                                   ISearchService searchService)
         {
             _documentService = documentService; // Add + Get
             _metadataService = metadataService; // Metadata
             _searchService = searchService;
-            _httpClient = httpClient;
-            _env = env;
         }
 
 
@@ -68,19 +60,6 @@ namespace eArchiveSystem.Presentation.Controllers
 
             //يسلّم كل شي للـ DocumentService 
             var result = await _documentService.AddDocumentAsync(ownerId, dto); 
-
-            await _httpClient.PostAsJsonAsync(
-              "https://localhost:7141/api/ocr/process",
-                   new
-                     {
-                    documentId = result.Document.Id,
-                    filePath = Path.Combine(_env.ContentRootPath, result.Document.FilePath),
-                    callbackUrl = $"https://localhost:44302/api/ocr/callback?documentId={result.Document.Id}",
-                    department = result.Document.Department
-                       }
-                        );
-
-
 
             if (result.IsDuplicate)
             {

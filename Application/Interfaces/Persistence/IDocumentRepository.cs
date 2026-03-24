@@ -33,6 +33,9 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
         // Get all documents (admin / manager)
         Task<List<Document>> GetAllAsync();
 
+        // Get documents by a batch of ids
+        Task<List<Document>> GetByIdsAsync(IReadOnlyCollection<string> ids);
+
         // Embed metadata into document
         Task AttachMetadataAsync(string documentId);
 

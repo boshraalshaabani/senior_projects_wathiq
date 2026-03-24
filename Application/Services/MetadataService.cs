@@ -10,12 +10,18 @@ namespace eArchiveSystem.Application.Services
         private readonly IDocumentRepository _documents;
         private readonly IMetadataRepository _metadata;
         private readonly IAuditService _audit;
+        private readonly IIndexingService _indexing;
 
-        public MetadataService(IDocumentRepository documents, IMetadataRepository metadata, IAuditService audit)
+        public MetadataService(
+            IDocumentRepository documents,
+            IMetadataRepository metadata,
+            IAuditService audit,
+            IIndexingService indexing)
         {
             _documents = documents;
             _metadata = metadata;
             _audit = audit;
+            _indexing = indexing;
         }
 
         private bool CanEdit(Document doc, string userId, string role)
@@ -81,8 +87,10 @@ namespace eArchiveSystem.Application.Services
 
             // 4) ربطها مع Document
             doc.Metadata = meta;
+            doc.Department = dto.Department;
             doc.UpdatedAt = DateTime.UtcNow;
             await _documents.UpdateAsync(doc.Id, doc);
+            await _indexing.SyncDocumentAsync(documentId);
 
 
             // 5) Audit
@@ -173,6 +181,7 @@ namespace eArchiveSystem.Application.Services
                 doc.UpdatedAt = DateTime.UtcNow;
                 doc.Department = dto.Department;
                 await _documents.UpdateAsync(doc.Id, doc);
+                await _indexing.SyncDocumentAsync(documentId);
 
                 // Audit
                 await _audit.LogAsync(
@@ -204,6 +213,7 @@ namespace eArchiveSystem.Application.Services
             doc.Department = dto.Department;
 
             await _documents.UpdateAsync(doc.Id, doc);
+            await _indexing.SyncDocumentAsync(documentId);
 
             //  Audit
             await _audit.LogAsync(

@@ -1,6 +1,7 @@
 ﻿namespace eArchiveSystem.Application.Interfaces.Services
 {
-    public interface ITextPreprocessor
+    public interface ITextPreprocessorService
     {
+        string Clean(string text);
     }
 }

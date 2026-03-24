@@ -1,38 +1,56 @@
-﻿using eArchiveSystem.Application.DTOs;
-using eArchiveSystem.Application.Interfaces.Persistence;
+using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Services;
-using eArchiveSystem.Domain.Models;
 
 namespace eArchiveSystem.Application.Services
 {
-        public class SearchService : ISearchService
-        {
-            private readonly IDocumentRepository _repo;
-            private readonly IAuditService _audit;
+    public class SearchService : ISearchService
+    {
+        private readonly IIndexingService _indexingService;
+        private readonly IAuditService _audit;
 
-
-        public SearchService(IDocumentRepository repo,
+        public SearchService(
+            IIndexingService indexingService,
             IAuditService audit)
-            {
-                _repo = repo;
+        {
+            _indexingService = indexingService;
             _audit = audit;
         }
 
-            public async Task<List<Document>> SearchDocumentsAsync(
-                SearchDocumentsDto dto,
-                string userId,
-                string role)
-            {
+        public async Task<object> SearchDocumentsAsync(
+            SearchDocumentsDto dto,
+            string userId,
+            string role)
+        {
             await _audit.LogAsync(
-          userId,
-          role,
-            "SearchDocuments",
-            null,
-            $"Search Query: {dto.Query}"
-);
+                userId,
+                role,
+                "SearchDocuments",
+                null,
+                $"Search Query: {dto.Query}"
+            );
 
-            return await _repo.SearchAsync(dto, userId, role);
-            }
+            var normalizedDto = new SearchDocumentsDto
+            {
+                Query = dto.Query,
+                Category = dto.Category,
+                Department = dto.Department,
+                FromDate = dto.FromDate,
+                ToDate = dto.ToDate,
+                SortBy = dto.SortBy,
+                Desc = dto.Desc,
+                Page = dto.Page <= 0 ? 1 : dto.Page,
+                PageSize = dto.PageSize <= 0 ? 10 : dto.PageSize
+            };
+
+            var searchResult = await _indexingService.SearchAsync(normalizedDto);
+
+            return new
+            {
+                total = searchResult.Total,
+                page = normalizedDto.Page,
+                pageSize = normalizedDto.PageSize,
+                data = searchResult.Results
+            };
         }
-
     }
+}

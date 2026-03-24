@@ -1,0 +1,16 @@
+namespace eArchiveSystem.Application.DTOs
+{
+    public class SearchDocumentIndex
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty;
+        public string? Category { get; set; }
+        public string? DocumentType { get; set; }
+        public List<string> Tags { get; set; } = new();
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+}
