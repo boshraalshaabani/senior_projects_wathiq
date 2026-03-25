@@ -47,6 +47,29 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 response.EnsureSuccessStatusCode();
         }
 
+        public async Task EnsureIndexExistsAsync()
+        {
+            using var client = CreateClient();
+            await EnsureIndexExistsAsync(client);
+        }
+
+        public async Task RecreateIndexAsync()
+        {
+            using var client = CreateClient();
+            using var deleteResponse = await client.DeleteAsync(_settings.IndexName);
+
+            if (deleteResponse.StatusCode != HttpStatusCode.NotFound)
+                deleteResponse.EnsureSuccessStatusCode();
+
+            using var createRequest = CreateJsonRequest(
+                HttpMethod.Put,
+                _settings.IndexName,
+                BuildIndexDefinition());
+
+            using var createResponse = await client.SendAsync(createRequest);
+            createResponse.EnsureSuccessStatusCode();
+        }
+
         public async Task<(IReadOnlyList<string> Ids, long Total)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId)
         {
             using var client = CreateClient();
@@ -72,8 +95,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 return (Array.Empty<string>(), 0);
             }
 
-            var total = 0L;
-
+            long total = 0;
             if (hitsNode.TryGetProperty("total", out var totalNode) &&
                 totalNode.TryGetProperty("value", out var totalValue))
             {
@@ -101,22 +123,22 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             if (existsResponse.StatusCode != HttpStatusCode.NotFound)
                 existsResponse.EnsureSuccessStatusCode();
 
-            using var request = CreateJsonRequest(
+            using var createRequest = CreateJsonRequest(
                 HttpMethod.Put,
                 _settings.IndexName,
                 BuildIndexDefinition());
 
-            using var response = await client.SendAsync(request);
+            using var createResponse = await client.SendAsync(createRequest);
 
-            if (response.StatusCode == HttpStatusCode.BadRequest)
+            if (createResponse.StatusCode == HttpStatusCode.BadRequest)
             {
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await createResponse.Content.ReadAsStringAsync();
 
                 if (content.Contains("resource_already_exists_exception", StringComparison.OrdinalIgnoreCase))
                     return;
             }
 
-            response.EnsureSuccessStatusCode();
+            createResponse.EnsureSuccessStatusCode();
         }
 
         private HttpClient CreateClient()
@@ -161,13 +183,13 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                                 type = "mapping",
                                 mappings = new[]
                                 {
-                                    "أ => ا",
-                                    "إ => ا",
-                                    "آ => ا",
-                                    "ى => ي",
-                                    "ؤ => و",
-                                    "ئ => ي",
-                                    "ة => ه"
+                                    "\u0623 => \u0627",
+                                    "\u0625 => \u0627",
+                                    "\u0622 => \u0627",
+                                    "\u0649 => \u064A",
+                                    "\u0624 => \u0648",
+                                    "\u0626 => \u064A",
+                                    "\u0629 => \u0647"
                                 }
                             }
                         },
@@ -179,18 +201,18 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                                 stopwords = new[]
                                 {
                                     "_arabic_",
-                                    "هذا",
-                                    "هذه",
-                                    "ذلك",
-                                    "تلك",
-                                    "في",
-                                    "من",
-                                    "الى",
-                                    "إلى",
-                                    "على",
-                                    "عن",
-                                    "ثم",
-                                    "قد"
+                                    "\u0647\u0630\u0627",
+                                    "\u0647\u0630\u0647",
+                                    "\u0630\u0644\u0643",
+                                    "\u062A\u0644\u0643",
+                                    "\u0641\u064A",
+                                    "\u0645\u0646",
+                                    "\u0627\u0644\u0649",
+                                    "\u0625\u0644\u0649",
+                                    "\u0639\u0644\u0649",
+                                    "\u0639\u0646",
+                                    "\u062B\u0645",
+                                    "\u0642\u062F"
                                 }
                             },
                             english_stop_custom = new
