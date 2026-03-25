@@ -1,43 +1,24 @@
-﻿using eArchiveSystem.Application.DTOs;
+using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Domain.Models;
 
 namespace eArchiveSystem.Application.Interfaces.Services
 {
     public interface IDocumentService
     {
-        //  Add document + trigger OCR
         Task<DocumentAddResult> AddDocumentAsync(string userId, AddDocumentDto dto);
-
-        // Get document with metadata
-        Task<Document?> GetByIdAsync(string id);
-
-        // Delete document (file + metadata + record)
-        Task<bool> DeleteDocumentAsync(string id, string userId, string role);
-
-        // View Document with Authorization
-        Task<DocumentViewDto?> ViewDocumentAsync(string documentId, string userId, string role, string? department);
-
-        // Download Document with Authorization
-        Task<(Stream FileStream, string FileName, string ContentType)?> DownloadDocumentAsync(
-      string documentId,
-           string userId,
-          string role,
-          string? department
-        );
-
-        // Update document (title / file)
+        Task<Document> GetByIdAsync(string id);
+        Task DeleteDocumentAsync(string id, string userId, string role);
+        Task<DocumentViewDto> ViewDocumentAsync(string documentId, string userId, string role, string? department);
+        Task<(Stream FileStream, string FileName, string ContentType)> DownloadDocumentAsync(
+            string documentId,
+            string userId,
+            string role,
+            string? department);
         Task<DocumentUpdateResult> UpdateDocumentAsync(
-        string documentId,
-        UpdateDocumentDto dto,
-        string userId,
-        string role
-);
-
-        // Sync metadata into document
+            string documentId,
+            UpdateDocumentDto dto,
+            string userId,
+            string role);
         Task AttachMetadataAsync(string documentId);
-
-
     }
-
 }
-
