@@ -51,10 +51,9 @@ namespace eArchiveSystem.Application.Services
         {
             return _searchRepository.DeleteAsync(documentId);
         }
-        public async Task<(List<SearchDocumentIndex>, long)> SearchAsync(SearchDocumentsDto dto)
+        public async Task<(List<SearchDocumentIndex>, long)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId)
         {
-            // استدعاء من الـ repository (Elasticsearch)
-            var ids = await _searchRepository.SearchAsync(dto, null);
+            var (ids, total) = await _searchRepository.SearchAsync(dto, ownerUserId);
 
             if (ids == null || ids.Count == 0)
                 return (new List<SearchDocumentIndex>(), 0);
@@ -77,7 +76,7 @@ namespace eArchiveSystem.Application.Services
                 })
                 .ToList();
 
-            return (results, ids.Count);
+            return (results, total);
         }
     }
 }

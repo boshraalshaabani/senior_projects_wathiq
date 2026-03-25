@@ -6,6 +6,6 @@ namespace eArchiveSystem.Application.Interfaces.Services
     {
         Task SyncDocumentAsync(string documentId);
         Task RemoveDocumentAsync(string documentId);
-        Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto);
+        Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId);
     }
 }
