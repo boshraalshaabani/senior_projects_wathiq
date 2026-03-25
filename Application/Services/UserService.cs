@@ -1,5 +1,6 @@
 ﻿using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Persistence;
+using eArchiveSystem.Application.Exceptions;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
 using eArchiveSystem.Domain.Models;
@@ -41,7 +42,7 @@ namespace eArchiveSystem.Application.Services
         {
             var exists = await _repo.GetByEmailAsync(dto.Email);
             if (exists != null)
-                throw new Exception("Email already used");
+                throw new ConflictException("Email already used");
 
             string hashedPassword = _hasher.Hash(dto.Password);
 
@@ -73,7 +74,7 @@ namespace eArchiveSystem.Application.Services
                     description: $"Failed login attempt for email {dto.Email}"
                 );
 
-                throw new Exception("Invalid email or password");
+                throw new ValidationException("Invalid email or password");
             }
 
 
@@ -81,7 +82,7 @@ namespace eArchiveSystem.Application.Services
             if (user.LockoutUntil != null && user.LockoutUntil > DateTime.UtcNow)
             {
                 var remainingSeconds = (int)(user.LockoutUntil.Value - DateTime.UtcNow).TotalSeconds;
-                throw new Exception($"Account locked. Try again after {remainingSeconds} seconds");
+                throw new ValidationException($"Account locked. Try again after {remainingSeconds} seconds");
             }
 
             // 2) Verify password
@@ -113,7 +114,7 @@ namespace eArchiveSystem.Application.Services
                    null,
                  $"Wrong password for {user.Email}"
                         );
-                throw new Exception("Invalid email or password");
+                throw new ValidationException("Invalid email or password");
             }
 
             // 3) Reset counters
@@ -185,12 +186,12 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(id);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             // Validate roles
             var validRoles = new[] { "Admin", "Manager", "User" };
             if (!validRoles.Contains(newRole))
-                throw new Exception("Invalid role");
+                throw new ValidationException("Invalid role");
 
             user.Role = newRole;
             user.UpdatedAt = DateTime.Now;
@@ -214,26 +215,23 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(userId);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             // تعديل الاسم والإيميل دائماً مسموح
             if (!string.IsNullOrEmpty(dto.Name))
                 user.Name = dto.Name;
 
-            if (!string.IsNullOrEmpty(dto.Email))
-                user.Email = dto.Email;
-
-            user.UpdatedAt = DateTime.Now;
-            await _repo.UpdateAsync(userId, user);
-
             if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
             {
                 var exists = await _repo.GetByEmailAsync(dto.Email);
                 if (exists != null)
-                    throw new Exception("Email already in use");
+                    throw new ConflictException("Email already in use");
 
                 user.Email = dto.Email;
             }
+
+            user.UpdatedAt = DateTime.Now;
+            await _repo.UpdateAsync(userId, user);
 
             await _audit.LogAsync(
               user.Id,
@@ -248,17 +246,17 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(userId);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             if (string.IsNullOrEmpty(dto.CurrentPassword))
-                throw new Exception("Current password is required");       
+                throw new ValidationException("Current password is required");       
 
             if (string.IsNullOrEmpty(dto.NewPassword))
-                throw new Exception("New password is required");
+                throw new ValidationException("New password is required");
 
             bool match = _hasher.Verify(dto.CurrentPassword, user.Password);
             if (!match)
-                throw new Exception("Current password is incorrect");
+                throw new ValidationException("Current password is incorrect");
 
             user.Password = _hasher.Hash(dto.NewPassword);
             user.UpdatedAt = DateTime.Now;
@@ -284,7 +282,7 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(userId);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             return user.TwoFactorEnabled;
         }
@@ -293,7 +291,7 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(userId);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             user.TwoFactorEnabled = enabled;
 
@@ -322,7 +320,7 @@ namespace eArchiveSystem.Application.Services
         {
             var exists = await _repo.GetByEmailAsync(dto.Email);
             if (exists != null)
-                throw new Exception("Admin email already exists");
+                throw new ConflictException("Admin email already exists");
 
             string hashedPassword = _hasher.Hash(dto.Password);
 
@@ -342,7 +340,7 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByIdAsync(id);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             // تعديل الاسم
             if (!string.IsNullOrEmpty(dto.Name))
@@ -371,7 +369,7 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
             if (user == null)
-                throw new Exception("Email not found");
+                throw new NotFoundException("Email not found");
 
             string code = GenerateResetCode();
 
@@ -393,13 +391,13 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
             if (user == null)
-                throw new Exception("Invalid email");
+                throw new ValidationException("Invalid email");
 
             if (user.ResetCode != dto.Code)
-                throw new Exception("Invalid reset code");
+                throw new ValidationException("Invalid reset code");
 
             if (user.ResetCodeExpiry < DateTime.UtcNow)
-                throw new Exception("Reset code expired");
+                throw new ValidationException("Reset code expired");
 
             user.Password = _hasher.Hash(dto.NewPassword);
             user.ResetCode = null;
@@ -467,13 +465,13 @@ namespace eArchiveSystem.Application.Services
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
             if (user == null)
-                throw new Exception("User not found");
+                throw new NotFoundException("User not found");
 
             if (user.TwoFactorCode == null || user.TwoFactorExpiry < DateTime.UtcNow)
-                throw new Exception("Verification code expired");
+                throw new ValidationException("Verification code expired");
 
             if (user.TwoFactorCode != dto.Code)
-                throw new Exception("Invalid verification code");
+                throw new ValidationException("Invalid verification code");
 
             // Clear code after success
             user.TwoFactorCode = null;

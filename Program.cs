@@ -5,6 +5,7 @@ using eArchiveSystem.Application.Services;
 using eArchiveSystem.Infrastructure.Persistence.Data;
 using eArchiveSystem.Infrastructure.Persistence.Repositories;
 using eArchiveSystem.Infrastructure.Security;
+using eArchiveSystem.Presentation.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
@@ -122,11 +123,11 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
