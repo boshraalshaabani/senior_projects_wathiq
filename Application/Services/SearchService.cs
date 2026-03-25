@@ -39,10 +39,11 @@ namespace eArchiveSystem.Application.Services
                 SortBy = dto.SortBy,
                 Desc = dto.Desc,
                 Page = dto.Page <= 0 ? 1 : dto.Page,
-                PageSize = dto.PageSize <= 0 ? 10 : dto.PageSize
+                PageSize = dto.PageSize <= 0 ? 10 : Math.Min(dto.PageSize, 50)
             };
 
-            var searchResult = await _indexingService.SearchAsync(normalizedDto);
+            var ownerUserId = role == "User" ? userId : null;
+            var searchResult = await _indexingService.SearchAsync(normalizedDto, ownerUserId);
 
             return new
             {
