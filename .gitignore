@@ -19,6 +19,7 @@ Thumbs.db
 
 # Environment
 .env
+appsettings.Development.local.json
 
 # Uploads (optional if large)
 uploads/
