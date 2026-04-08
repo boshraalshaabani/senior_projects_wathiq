@@ -8,6 +8,6 @@ namespace eArchiveSystem.Application.Interfaces.Services
         Task RemoveDocumentAsync(string documentId);
         Task EnsureIndexReadyAsync();
         Task ReindexAllAsync(bool recreateIndex = false);
-        Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId);
+        Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope);
     }
 }

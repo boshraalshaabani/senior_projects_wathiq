@@ -5,8 +5,10 @@
         public string Name { get; set; }
         public string Email { get; set; }
         public string Password { get; set; }
-        public string Role { get; set; } // Admin / Manager / User
-        public string Department { get; set; }
+        public string Role { get; set; } // SystemAdmin / InstitutionAdmin / Manager / Employee
+        public string? InstitutionId { get; set; }
+        public string? DepartmentId { get; set; }
+        public string? Department { get; set; }
 
     }
 }

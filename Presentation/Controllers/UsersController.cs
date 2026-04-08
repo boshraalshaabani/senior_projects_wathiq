@@ -18,23 +18,24 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
         // ADD USER (Admin only)
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPost("add")]
         public async Task<IActionResult> AddUser(AddUserDto dto)
         {
-            var user = await _service.AddUser(dto);
+            var requesterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var user = await _service.AddUser(dto, requesterId);
             return Ok(user);
         }
 
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin")]
         [HttpPost("create-admin")]
         public async Task<IActionResult> CreateAdmin(CreateAdminDto dto)
         {
             var admin = await _service.CreateAdmin(dto);
             return Ok(new
             {
-                message = "Admin created successfully",
+                message = "System admin created successfully",
                 admin = new
                 {
                     id = admin.Id,
@@ -58,34 +59,37 @@ namespace eArchiveSystem.Presentation.Controllers
 
         //Update Role (assign-role) 
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPut("{id}/assign-role")]
         public async Task<IActionResult> AssignRole(string id, AssignRoleDto dto)
         {
-            var result = await _service.AssignRole(id, dto.Role);
+            var requesterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _service.AssignRole(id, dto.Role, requesterId);
             return Ok(new { message = result });
         }
 
 
         // DELETE USER (Admin only)
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(string id)
         {
+            var requesterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
             var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-            var result = await _service.DeleteUser(id, role);
+            var result = await _service.DeleteUser(id, role, requesterId);
 
             return Ok(new { message = result });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPut("edit/{id}")]
         public async Task<IActionResult> EditUser(string id, UpdateUserDto dto)
         {
-            var result = await _service.EditUser(id, dto);
+            var requesterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _service.EditUser(id, dto, requesterId);
             return Ok(new { message = result });
         }
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] string? role, [FromQuery] string? search)
         {

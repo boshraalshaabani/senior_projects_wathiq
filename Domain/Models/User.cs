@@ -19,7 +19,13 @@ namespace eArchiveSystem.Domain.Models
         public string Password { get; set; }
 
         [BsonElement("role")]
-        public string Role { get; set; }   // Admin / Manager / User
+        public string Role { get; set; }   // SystemAdmin / InstitutionAdmin / Manager / Employee
+
+        [BsonElement("institutionId")]
+        public string? InstitutionId { get; set; }
+
+        [BsonElement("departmentId")]
+        public string? DepartmentId { get; set; }
 
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -40,7 +46,7 @@ namespace eArchiveSystem.Domain.Models
         public DateTime? LockoutUntil { get; set; } = null;
 
         [BsonElement("department")]
-        public string Department { get; set; }
+        public string? Department { get; set; }
 
         [BsonElement("twoFactorEnabled")]
         public bool TwoFactorEnabled { get; set; } = false;

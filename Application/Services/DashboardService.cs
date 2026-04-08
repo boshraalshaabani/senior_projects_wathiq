@@ -5,35 +5,28 @@ namespace eArchiveSystem.Application.Services
 {
     public class DashboardService : IDashboardService
     {
-        private readonly IDocumentRepository _documents;
-        private readonly IUserRepository _users;
-        private readonly IAuditRepository _audit;
+        private readonly IAnalyticsScopeService _scope;
 
-        public DashboardService(
-            IDocumentRepository documents,
-            IUserRepository users,
-            IAuditRepository audit)
+        public DashboardService(IAnalyticsScopeService scope)
         {
-            _documents = documents;
-            _users = users;
-            _audit = audit;
+            _scope = scope;
         }
 
-        public async Task<int> GetTotalDocumentsAsync()
+        public async Task<int> GetTotalDocumentsAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
             return docs.Count;
         }
 
-        public async Task<int> GetTotalUsersAsync()
+        public async Task<int> GetTotalUsersAsync(string requesterId)
         {
-            var users = await _users.GetAllAsync();
+            var users = await _scope.GetScopedUsersAsync(requesterId);
             return users.Count;
         }
 
-        public async Task<int> GetTodayUploadsAsync()
+        public async Task<int> GetTodayUploadsAsync(string requesterId)
         {
-            var logs = await _audit.GetAllAsync();
+            var logs = await _scope.GetScopedAuditLogsAsync(requesterId);
             var today = DateTime.UtcNow.Date;
 
             return logs.Count(l =>
@@ -41,9 +34,9 @@ namespace eArchiveSystem.Application.Services
                 l.Timestamp.Date == today);
         }
 
-        public async Task<int> GetMonthlyUpdatesAsync()
+        public async Task<int> GetMonthlyUpdatesAsync(string requesterId)
         {
-            var logs = await _audit.GetAllAsync();
+            var logs = await _scope.GetScopedAuditLogsAsync(requesterId);
             var now = DateTime.UtcNow;
 
             return logs.Count(l =>
@@ -52,18 +45,18 @@ namespace eArchiveSystem.Application.Services
                 l.Timestamp.Year == now.Year);
         }
 
-        public async Task<Dictionary<string, int>> GetDocumentsByDepartmentAsync()
+        public async Task<Dictionary<string, int>> GetDocumentsByDepartmentAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
 
             return docs
                 .GroupBy(d => d.Department ?? "Unknown")
                 .ToDictionary(g => g.Key, g => g.Count());
         }
 
-        public async Task<Dictionary<string, int>> GetDocumentsByTypeAsync()
+        public async Task<Dictionary<string, int>> GetDocumentsByTypeAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
 
             return docs
                 .Where(d => d.Metadata != null)

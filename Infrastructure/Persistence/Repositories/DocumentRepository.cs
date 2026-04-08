@@ -1,5 +1,6 @@
 ﻿using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Persistence;
+using eArchiveSystem.Application.Security;
 using eArchiveSystem.Domain.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -88,12 +89,14 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         public async Task UpdateContentAsync(
             string documentId,
             string content,
-            string department
+            string? department,
+            string? departmentId
         )
         {
             var update = Builders<Document>.Update
                 .Set(d => d.Content, content)
                 .Set(d => d.Department, department)
+                .Set(d => d.DepartmentId, departmentId)
                 .Set(d => d.UpdatedAt, DateTime.UtcNow);
 
             await _documents.UpdateOneAsync(
@@ -139,6 +142,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 .Set("Metadata.DocumentType", metadata.DocumentType)
                 .Set("Metadata.Tags", metadata.Tags)
                 .Set("Metadata.Department", metadata.Department)
+                .Set("Metadata.DepartmentId", metadata.DepartmentId)
                 .Set("Metadata.ExpirationDate", metadata.ExpirationDate)
                 .Set("Metadata.CreatedAt", metadata.CreatedAt)
                 .Set("Metadata.UpdatedAt", metadata.UpdatedAt)
@@ -170,7 +174,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         {
             var filters = new List<FilterDefinition<Document>>();
 
-            if (role == "User")
+            if (role == ApplicationRoles.Employee)
                 filters.Add(Builders<Document>.Filter.Eq(d => d.UserId, userId));
 
             if (!string.IsNullOrEmpty(dto.Query))

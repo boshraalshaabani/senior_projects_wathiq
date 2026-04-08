@@ -12,7 +12,7 @@ namespace eArchiveSystem.Controllers
         private readonly IUserService _userService;
 
         public AuthController(IUserService userService)
-        {
+        { 
             _userService = userService;
         }
 
@@ -41,7 +41,10 @@ namespace eArchiveSystem.Controllers
                     id = result.User.Id,
                     name = result.User.Name,
                     email = result.User.Email,
-                    role = result.User.Role
+                    role = result.User.Role,
+                    institutionId = result.User.InstitutionId,
+                    departmentId = result.User.DepartmentId,
+                    department = result.User.Department
                 },
                 requires2FA = false
             });
@@ -86,7 +89,10 @@ namespace eArchiveSystem.Controllers
                     id = result.User.Id,
                     name = result.User.Name,
                     email = result.User.Email,
-                    role = result.User.Role
+                    role = result.User.Role,
+                    institutionId = result.User.InstitutionId,
+                    departmentId = result.User.DepartmentId,
+                    department = result.User.Department
                 },
                 requires2FA = false,
                 message = result.Message

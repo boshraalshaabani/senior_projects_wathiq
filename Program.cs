@@ -35,7 +35,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDB"));
 
-builder.Services.Configure<ElasticsearchSettings>(
+builder.Services.Configure<ElasticsearchSettings>( 
     builder.Configuration.GetSection("Elasticsearch"));
 
 builder.Services.AddSingleton<IMongoClient>(sp =>
@@ -55,6 +55,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IMetadataRepository, MetadataRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
+builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 
 // ? ????? Repository ???? ???? (???? HttpClient)
 builder.Services.AddScoped<IDocumentSearchRepository, ElasticsearchDocumentSearchRepository>();
@@ -73,6 +74,7 @@ builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IReportService, ReportService>();
@@ -80,6 +82,9 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRuleBasedAnalyzer, RuleBasedAnalyzer>();
 builder.Services.AddScoped<ITextPreprocessorService, TextPreprocessorService>();
 builder.Services.AddScoped<IIndexingService, IndexingService>();
+builder.Services.AddScoped<IDocumentAuthorizationService, DocumentAuthorizationService>();
+builder.Services.AddScoped<IPermissionReviewService, PermissionReviewService>();
+builder.Services.AddScoped<IAnalyticsScopeService, AnalyticsScopeService>();
 
 QuestPDF.Settings.License = LicenseType.Community;
 

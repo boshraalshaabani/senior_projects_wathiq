@@ -15,12 +15,15 @@ namespace eArchiveSystem.Application.Services
     {
         private readonly IAuditRepository _repo;
         private readonly IUserRepository _users;
+        private readonly IAnalyticsScopeService _scope;
 
         public AuditService(IAuditRepository repo,
-            IUserRepository users)
+            IUserRepository users,
+            IAnalyticsScopeService scope)
         {
             _repo = repo;
             _users = users;
+            _scope = scope;
         }
 
         public async Task LogAsync(
@@ -61,9 +64,9 @@ namespace eArchiveSystem.Application.Services
             return await _repo.GetFilteredAsync(userId, role, action, from, to, page, pageSize);
         }
 
-        public async Task<List<AuditLogDto>> GetAllWithUsersAsync()
+        public async Task<List<AuditLogDto>> GetAllWithUsersAsync(string requesterId)
         {
-            var logs = await _repo.GetAllAsync();
+            var logs = await _scope.GetScopedAuditLogsAsync(requesterId);
 
             var userIds = logs
                 .Select(l => l.UserId)

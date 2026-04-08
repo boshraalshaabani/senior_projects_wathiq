@@ -8,15 +8,18 @@ namespace eArchiveSystem.Application.Services
     {
         private readonly IDocumentRepository _documents;
         private readonly IMetadataRepository _metadata;
+        private readonly IUserRepository _users;
         private readonly IDocumentSearchRepository _searchRepository;
 
         public IndexingService(
             IDocumentRepository documents,
             IMetadataRepository metadata,
+            IUserRepository users,
             IDocumentSearchRepository searchRepository)
         {
             _documents = documents;
             _metadata = metadata;
+            _users = users;
             _searchRepository = searchRepository;
         }
 
@@ -56,9 +59,9 @@ namespace eArchiveSystem.Application.Services
             }
         }
 
-        public async Task<(List<SearchDocumentIndex>, long)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId)
+        public async Task<(List<SearchDocumentIndex>, long)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
         {
-            var (ids, total) = await _searchRepository.SearchAsync(dto, ownerUserId);
+            var (ids, total) = await _searchRepository.SearchAsync(dto, scope);
 
             if (ids == null || ids.Count == 0)
                 return (new List<SearchDocumentIndex>(), 0);
@@ -74,6 +77,8 @@ namespace eArchiveSystem.Application.Services
                     Id = doc.Id,
                     Title = doc.Title,
                     Content = doc.Content ?? doc.Title,
+                    InstitutionId = doc.InstitutionId ?? string.Empty,
+                    DepartmentId = doc.DepartmentId ?? doc.Department ?? string.Empty,
                     Department = doc.Department,
                     UserId = doc.UserId,
                     Category = doc.Metadata?.Category,
@@ -90,6 +95,7 @@ namespace eArchiveSystem.Application.Services
         private async Task<SearchDocumentIndex> BuildSearchDocumentAsync(Domain.Models.Document document)
         {
             var metadata = document.Metadata ?? await _metadata.GetByDocumentIdAsync(document.Id);
+            var owner = await _users.GetByIdAsync(document.UserId);
 
             return new SearchDocumentIndex
             {
@@ -98,6 +104,8 @@ namespace eArchiveSystem.Application.Services
                 Content = string.IsNullOrWhiteSpace(document.Content)
                     ? document.Title
                     : document.Content,
+                InstitutionId = document.InstitutionId ?? owner?.InstitutionId ?? string.Empty,
+                DepartmentId = document.DepartmentId ?? metadata?.DepartmentId ?? document.Department ?? owner?.DepartmentId ?? owner?.Department ?? string.Empty,
                 Department = document.Department,
                 UserId = document.UserId,
                 Category = metadata?.Category,

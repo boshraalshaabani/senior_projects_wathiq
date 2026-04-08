@@ -25,7 +25,10 @@ namespace eArchiveSystem.Infrastructure.Security
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim("email", user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("institutionId", user.InstitutionId ?? string.Empty),
+                new Claim("departmentId", user.DepartmentId ?? user.Department ?? string.Empty),
+                new Claim("department", user.Department ?? string.Empty)
             };
 
 

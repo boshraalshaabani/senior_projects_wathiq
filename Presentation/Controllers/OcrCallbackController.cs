@@ -58,6 +58,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 DocumentType = documentType,
                 Tags = tags,
                 Department = doc.Department,
+                DepartmentId = doc.DepartmentId ?? doc.Department,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -71,7 +72,8 @@ namespace eArchiveSystem.Presentation.Controllers
             await _documents.UpdateContentAsync(
                 documentId,
                 cleaned,
-                doc.Department
+                doc.Department,
+                doc.DepartmentId ?? doc.Department
             );
 
             await _indexingService.SyncDocumentAsync(documentId);
