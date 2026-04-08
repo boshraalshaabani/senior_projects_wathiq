@@ -16,12 +16,13 @@ namespace eArchiveSystem.Presentation.Controllers
             _audit = audit;
         }
 
-        // فقط الـ Admin يقدر يشوف السجلّات
-        [Authorize(Roles = "Admin,Manager")]
+        // حاليًا الوصول محصور بالأدوار التي كانت تستعمل هذه الشاشة سابقًا
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet]
         public async Task<IActionResult> GetAuditLogs()
         {
-            var logs = await _audit.GetAllWithUsersAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var logs = await _audit.GetAllWithUsersAsync(requesterId);
             return Ok(logs);
         }
     }

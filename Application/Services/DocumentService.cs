@@ -5,8 +5,6 @@ using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
 using eArchiveSystem.Domain.Models;
-using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
 using System.Net.Http.Json;
 
 namespace eArchiveSystem.Application.Services
@@ -22,6 +20,7 @@ namespace eArchiveSystem.Application.Services
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
         private readonly IIndexingService _indexing;
+        private readonly IDocumentAuthorizationService _authorization;
         private readonly ILogger<DocumentService> _logger;
 
         public DocumentService(
@@ -34,6 +33,7 @@ namespace eArchiveSystem.Application.Services
             HttpClient httpClient,
             IConfiguration config,
             IIndexingService indexing,
+            IDocumentAuthorizationService authorization,
             ILogger<DocumentService> logger)
         {
             _documents = documents;
@@ -45,52 +45,27 @@ namespace eArchiveSystem.Application.Services
             _httpClient = httpClient;
             _config = config;
             _indexing = indexing;
+            _authorization = authorization;
             _logger = logger;
         }
 
-        private bool CanAdd(string role)
+        public async Task<DocumentAddResult> AddDocumentAsync(string actorUserId, AddDocumentDto dto)
         {
-            return role == "User" || role == "Manager";
-        }
-
-        private bool CanDelete(Document doc, string userId, string role)
-        {
-            if (role == "Manager") return true;
-            if (role == "User" && doc.UserId == userId) return true;
-            return false;
-        }
-
-        private bool CanEdit(Document doc, string userId, string role)
-        {
-            if (role == "Manager") return true;
-            if (role == "User" && doc.UserId == userId) return true;
-            return false;
-        }
-
-        private bool CanView(Document doc, string userId, string role)
-        {
-            if (role == "Admin") return true;
-            if (role == "Manager") return true;
-            if (role == "User" && doc.UserId == userId) return true;
-
-            return false;
-        }
-
-        private bool CanDownload(Document doc, string userId, string role)
-        {
-            return CanView(doc, userId, role);
-        }
-
-        public async Task<DocumentAddResult> AddDocumentAsync(string userId, AddDocumentDto dto)
-        {
-            var user = await _users.GetByIdAsync(userId)
+            var actor = await _users.GetByIdAsync(actorUserId)
                 ?? throw new NotFoundException("User not found");
-
-            if (!CanAdd(user.Role))
-                throw new UnauthorizedActionException("You are not allowed to add documents");
 
             if (dto.File == null)
                 throw new ValidationException("File is required");
+
+            var ownerId = string.IsNullOrWhiteSpace(dto.TargetUserId)
+                ? actor.Id
+                : dto.TargetUserId;
+
+            var owner = await _users.GetByIdAsync(ownerId)
+                ?? throw new NotFoundException("Target user not found");
+
+            if (!_authorization.CanAddForOwner(actor, owner))
+                throw new UnauthorizedActionException("You are not allowed to add documents for this user");
 
             var fileHash = await _hashCalculator.ComputeHashAsync(dto.File);
             var existing = await _documents.GetByHashAsync(fileHash);
@@ -118,8 +93,10 @@ namespace eArchiveSystem.Application.Services
                 Size = dto.File.Length,
                 FileHash = fileHash,
                 Content = null,
-                UserId = userId,
-                Department = user.Department,
+                UserId = owner.Id,
+                InstitutionId = owner.InstitutionId,
+                DepartmentId = owner.DepartmentId ?? owner.Department,
+                Department = owner.Department ?? owner.DepartmentId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -134,11 +111,11 @@ namespace eArchiveSystem.Application.Services
             await TriggerOcrAsync(doc.Id, fullSavedPath);
 
             await _audit.LogAsync(
-                userId,
-                user.Role,
+                actor.Id,
+                actor.Role,
                 "AddDocument",
                 doc.Id,
-                $"User {userId} uploaded document '{doc.Title}'");
+                $"User {actor.Id} uploaded document '{doc.Title}' for owner {owner.Id}");
 
             return new DocumentAddResult
             {
@@ -169,13 +146,16 @@ namespace eArchiveSystem.Application.Services
             await _documents.UpdateMetadataFieldsAsync(documentId, metadata);
         }
 
-        public async Task<DocumentViewDto> ViewDocumentAsync(string id, string userId, string role, string? dept)
+        public async Task<DocumentViewDto> ViewDocumentAsync(string id, string userId, string role)
         {
             var doc = await _documents.GetByIdAsync(id);
             if (doc == null)
                 throw new NotFoundException("Document not found");
 
-            if (!CanView(doc, userId, role))
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            if (!_authorization.CanView(actor, doc))
                 throw new UnauthorizedActionException("You are not allowed to view this document");
 
             var owner = await _users.GetByIdAsync(doc.UserId);
@@ -192,6 +172,8 @@ namespace eArchiveSystem.Application.Services
             {
                 Id = doc.Id,
                 Title = doc.Title,
+                InstitutionId = doc.InstitutionId,
+                DepartmentId = doc.DepartmentId,
                 Department = doc.Department,
                 OwnerName = owner?.Name,
                 CreatedAt = doc.CreatedAt,
@@ -203,14 +185,16 @@ namespace eArchiveSystem.Application.Services
         public async Task<(Stream FileStream, string FileName, string ContentType)> DownloadDocumentAsync(
             string id,
             string userId,
-            string role,
-            string? dept)
+            string role)
         {
             var doc = await _documents.GetByIdAsync(id);
             if (doc == null)
                 throw new NotFoundException("Document not found");
 
-            if (!CanDownload(doc, userId, role))
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            if (!_authorization.CanView(actor, doc))
                 throw new UnauthorizedActionException("You are not allowed to download this document");
 
             var fullPath = Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath);
@@ -240,7 +224,10 @@ namespace eArchiveSystem.Application.Services
             if (doc == null)
                 throw new NotFoundException("Document not found");
 
-            if (!CanEdit(doc, userId, role))
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            if (!_authorization.CanEdit(actor, doc))
                 throw new UnauthorizedActionException("You are not allowed to update this document");
 
             if (!string.IsNullOrWhiteSpace(dto.Title))
@@ -307,7 +294,10 @@ namespace eArchiveSystem.Application.Services
             if (doc == null)
                 throw new NotFoundException("Document not found");
 
-            if (!CanDelete(doc, userId, role))
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            if (!_authorization.CanDelete(actor, doc))
                 throw new UnauthorizedActionException("You are not allowed to delete this document");
 
             var fullPath = Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath);

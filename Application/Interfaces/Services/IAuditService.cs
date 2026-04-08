@@ -24,7 +24,7 @@ namespace eArchiveSystem.Application.Interfaces.Services
             int pageSize);
 
 
-        Task<List<AuditLogDto>> GetAllWithUsersAsync();
+        Task<List<AuditLogDto>> GetAllWithUsersAsync(string requesterId);
     }
 }
     

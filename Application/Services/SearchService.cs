@@ -1,4 +1,6 @@
 using eArchiveSystem.Application.DTOs;
+using eArchiveSystem.Application.Exceptions;
+using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Interfaces.Services;
 
 namespace eArchiveSystem.Application.Services
@@ -6,13 +8,19 @@ namespace eArchiveSystem.Application.Services
     public class SearchService : ISearchService
     {
         private readonly IIndexingService _indexingService;
+        private readonly IUserRepository _users;
+        private readonly IDocumentAuthorizationService _authorization;
         private readonly IAuditService _audit;
 
         public SearchService(
             IIndexingService indexingService,
+            IUserRepository users,
+            IDocumentAuthorizationService authorization,
             IAuditService audit)
         {
             _indexingService = indexingService;
+            _users = users;
+            _authorization = authorization;
             _audit = audit;
         }
 
@@ -34,6 +42,7 @@ namespace eArchiveSystem.Application.Services
                 Query = dto.Query,
                 Category = dto.Category,
                 Department = dto.Department,
+                DepartmentId = string.IsNullOrWhiteSpace(dto.DepartmentId) ? dto.Department : dto.DepartmentId,
                 FromDate = dto.FromDate,
                 ToDate = dto.ToDate,
                 SortBy = dto.SortBy,
@@ -42,8 +51,12 @@ namespace eArchiveSystem.Application.Services
                 PageSize = dto.PageSize <= 0 ? 10 : Math.Min(dto.PageSize, 50)
             };
 
-            var ownerUserId = role == "User" ? userId : null;
-            var searchResult = await _indexingService.SearchAsync(normalizedDto, ownerUserId);
+            var actor = await _users.GetByIdAsync(userId);
+            if (actor == null)
+                throw new NotFoundException("User not found");
+
+            var scope = _authorization.BuildSearchScope(actor);
+            var searchResult = await _indexingService.SearchAsync(normalizedDto, scope);
 
             return new
             {

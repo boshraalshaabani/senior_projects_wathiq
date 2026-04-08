@@ -2,13 +2,13 @@
 {
     public interface IDashboardService
     {
-        Task<int> GetTotalDocumentsAsync();
-        Task<int> GetTotalUsersAsync();
-        Task<int> GetTodayUploadsAsync();
-        Task<int> GetMonthlyUpdatesAsync();
+        Task<int> GetTotalDocumentsAsync(string requesterId);
+        Task<int> GetTotalUsersAsync(string requesterId);
+        Task<int> GetTodayUploadsAsync(string requesterId);
+        Task<int> GetMonthlyUpdatesAsync(string requesterId);
 
-        Task<Dictionary<string, int>> GetDocumentsByDepartmentAsync();
-        Task<Dictionary<string, int>> GetDocumentsByTypeAsync();
+        Task<Dictionary<string, int>> GetDocumentsByDepartmentAsync(string requesterId);
+        Task<Dictionary<string, int>> GetDocumentsByTypeAsync(string requesterId);
 
 
     }

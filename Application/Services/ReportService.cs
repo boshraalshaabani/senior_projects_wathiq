@@ -10,31 +10,29 @@ namespace eArchiveSystem.Application.Services
 {
     public class ReportService : IReportService
     {
-        private readonly IDocumentRepository _documents;
-        private readonly IAuditRepository _audit;
+        private readonly IAnalyticsScopeService _scope;
 
-        public ReportService(IDocumentRepository documents, IAuditRepository audit)
+        public ReportService(IAnalyticsScopeService scope)
         {
-            _documents = documents;
-            _audit = audit;
+            _scope = scope;
         }
 
         // ================================
         // A) COUNT REPORTS
         // ================================
 
-        public async Task<Dictionary<string, int>> GetDocumentsCountByDepartmentAsync()
+        public async Task<Dictionary<string, int>> GetDocumentsCountByDepartmentAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
 
             return docs
                 .GroupBy(d => d.Department)
                 .ToDictionary(g => g.Key ?? "Unknown", g => g.Count());
         }
 
-        public async Task<Dictionary<string, int>> GetDocumentsCountByTypeAsync()
+        public async Task<Dictionary<string, int>> GetDocumentsCountByTypeAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
 
             return docs
                 .Where(d => d.Metadata?.DocumentType != null)
@@ -46,9 +44,9 @@ namespace eArchiveSystem.Application.Services
         // B) USER ACTIVITY REPORT
         // ================================
 
-        public async Task<List<Report>> GetUserActivityReportAsync()
+        public async Task<List<Report>> GetUserActivityReportAsync(string requesterId)
         {
-            var logs = await _audit.GetAllAsync();
+            var logs = await _scope.GetScopedAuditLogsAsync(requesterId);
 
             var report = logs
                 .GroupBy(l => l.UserId)
@@ -70,9 +68,9 @@ namespace eArchiveSystem.Application.Services
         // C) TIME REPORT
         // ================================
 
-        public async Task<object> GetTimeReportAsync()
+        public async Task<object> GetTimeReportAsync(string requesterId)
         {
-            var logs = await _audit.GetAllAsync();
+            var logs = await _scope.GetScopedAuditLogsAsync(requesterId);
 
             return logs
                 .GroupBy(l => l.Timestamp.Date)
@@ -90,9 +88,9 @@ namespace eArchiveSystem.Application.Services
         // D) EXPORT - DEPARTMENT
         // ================================
 
-        public async Task<byte[]> ExportDepartmentReportExcelAsync()
+        public async Task<byte[]> ExportDepartmentReportExcelAsync(string requesterId)
         {
-            var data = await GetDocumentsCountByDepartmentAsync();
+            var data = await GetDocumentsCountByDepartmentAsync(requesterId);
 
             using var workbook = new XLWorkbook();
             var sheet = workbook.Worksheets.Add("Departments");
@@ -114,9 +112,9 @@ namespace eArchiveSystem.Application.Services
             return stream.ToArray();
         }
 
-        public async Task<byte[]> ExportDepartmentReportPdfAsync()
+        public async Task<byte[]> ExportDepartmentReportPdfAsync(string requesterId)
         {
-            var data = await GetDocumentsCountByDepartmentAsync();
+            var data = await GetDocumentsCountByDepartmentAsync(requesterId);
 
             var pdf = QuestPDF.Fluent.Document.Create(container =>
 
@@ -159,9 +157,9 @@ namespace eArchiveSystem.Application.Services
         // E) EXPORT - TYPE
         // ================================
 
-        public async Task<byte[]> ExportTypeReportExcelAsync()
+        public async Task<byte[]> ExportTypeReportExcelAsync(string requesterId)
         {
-            var data = await GetDocumentsCountByTypeAsync();
+            var data = await GetDocumentsCountByTypeAsync(requesterId);
 
             using var workbook = new XLWorkbook();
             var sheet = workbook.Worksheets.Add("Document Types");
@@ -183,9 +181,9 @@ namespace eArchiveSystem.Application.Services
             return stream.ToArray();
         }
 
-        public async Task<byte[]> ExportTypeReportPdfAsync()
+        public async Task<byte[]> ExportTypeReportPdfAsync(string requesterId)
         {
-            var data = await GetDocumentsCountByTypeAsync();
+            var data = await GetDocumentsCountByTypeAsync(requesterId);
 
             var pdf = QuestPDF.Fluent.Document.Create(container =>
 
@@ -228,9 +226,9 @@ namespace eArchiveSystem.Application.Services
         // F) EXPORT - USER ACTIVITY
         // ================================
 
-        public async Task<byte[]> ExportUserActivityReportExcelAsync()
+        public async Task<byte[]> ExportUserActivityReportExcelAsync(string requesterId)
         {
-            var list = await GetUserActivityReportAsync();
+            var list = await GetUserActivityReportAsync(requesterId);
 
             using var workbook = new XLWorkbook();
             var sheet = workbook.Worksheets.Add("User Activity");
@@ -260,9 +258,9 @@ namespace eArchiveSystem.Application.Services
             return stream.ToArray();
         }
 
-        public async Task<byte[]> ExportUserActivityReportPdfAsync()
+        public async Task<byte[]> ExportUserActivityReportPdfAsync(string requesterId)
         {
-            var list = await GetUserActivityReportAsync();
+            var list = await GetUserActivityReportAsync(requesterId);
 
             var pdf = QuestPDF.Fluent.Document.Create(container =>
 
@@ -312,9 +310,9 @@ namespace eArchiveSystem.Application.Services
             return pdf.GeneratePdf();
         }
 
-        public async Task<byte[]> ExportAllDocumentsExcelAsync()
+        public async Task<byte[]> ExportAllDocumentsExcelAsync(string requesterId)
         {
-            var docs = await _documents.GetAllAsync();
+            var docs = await _scope.GetScopedDocumentsAsync(requesterId);
 
             using var workbook = new XLWorkbook();
             var sheet = workbook.Worksheets.Add("All Documents");

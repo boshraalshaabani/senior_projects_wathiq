@@ -24,28 +24,13 @@ namespace eArchiveSystem.Presentation.Controllers
             _searchService = searchService;
         }
 
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager,Employee")]
         [HttpPost("Add")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Add([FromForm] AddDocumentDto dto)
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var role = User.FindFirst(ClaimTypes.Role)?.Value!;
-
-            string ownerId = currentUserId;
-
-            if (role == "User" && !string.IsNullOrEmpty(dto.TargetUserId))
-            {
-                return BadRequest(new
-                {
-                    message = "You are not allowed to assign documents to other users."
-                });
-            }
-
-            if (role == "Manager" && !string.IsNullOrEmpty(dto.TargetUserId))
-                ownerId = dto.TargetUserId;
-
-            var result = await _documentService.AddDocumentAsync(ownerId, dto);
+            var result = await _documentService.AddDocumentAsync(currentUserId, dto);
 
             if (result.IsDuplicate)
             {
@@ -70,7 +55,7 @@ namespace eArchiveSystem.Presentation.Controllers
             });
         }
 
-        [Authorize]
+        [Authorize(Roles = "Manager,Employee")]
         [HttpPost("{id}/metadata")]
         public async Task<IActionResult> AddMetadata(string id, [FromBody] AddMetadataDto dto)
         {
@@ -85,7 +70,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(new { message = "Metadata added" });
         }
 
-        [Authorize]
+        [Authorize(Roles = "Manager,Employee")]
         [HttpPut("{id}/metadata")]
         public async Task<IActionResult> UpdateMetadata(string id, [FromBody] AddMetadataDto dto)
         {
@@ -100,7 +85,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(new { message = "Metadata updated" });
         }
 
-        [Authorize]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpPost("search")]
         public async Task<IActionResult> SearchDocuments(SearchDocumentsDto dto)
         {
@@ -111,7 +96,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager,Employee")]
         [HttpDelete("{documentId}")]
         public async Task<IActionResult> DeleteDocument(string documentId)
         {
@@ -123,26 +108,22 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
         [HttpGet("{id}/view")]
-        [Authorize]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         public async Task<IActionResult> View(string id)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
             var role = User.FindFirst(ClaimTypes.Role)?.Value!;
-            var department = User.FindFirst("department")?.Value;
-
-            var doc = await _documentService.ViewDocumentAsync(id, userId, role, department);
+            var doc = await _documentService.ViewDocumentAsync(id, userId, role);
             return Ok(doc);
         }
 
-        [Authorize]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpGet("{id}/download")]
         public async Task<IActionResult> Download(string id)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
             var role = User.FindFirst(ClaimTypes.Role)?.Value!;
-            var dept = User.FindFirst("department")?.Value;
-
-            var result = await _documentService.DownloadDocumentAsync(id, userId, role, dept);
+            var result = await _documentService.DownloadDocumentAsync(id, userId, role);
 
             return File(
                 result.FileStream,
@@ -150,7 +131,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 result.FileName);
         }
 
-        [Authorize]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpGet("{id}/metadata")]
         public async Task<IActionResult> ViewMetadata(string id)
         {
@@ -171,7 +152,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(meta);
         }
 
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager,Employee")]
         [HttpPut("{id}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(string id, [FromForm] UpdateDocumentDto dto)

@@ -49,7 +49,8 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
         Task UpdateContentAsync(
             string documentId,
             string content,
-            string department
+            string? department,
+            string? departmentId
         );
     }
 }

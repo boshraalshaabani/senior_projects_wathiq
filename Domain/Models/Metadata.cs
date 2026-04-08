@@ -31,6 +31,9 @@ namespace eArchiveSystem.Domain.Models
             // Department associated with the document
             public string? Department { get; set; }
 
+            // Department identifier associated with the document
+            public string? DepartmentId { get; set; }
+
             // Optional expiration date
             public DateTime? ExpirationDate { get; set; }
         }

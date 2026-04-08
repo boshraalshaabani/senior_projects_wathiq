@@ -39,8 +39,14 @@ namespace eArchiveSystem.Domain.Models
             // Owner user ID
             public string UserId { get; set; }
 
+            // Institution that owns this document
+            public string? InstitutionId { get; set; }
+
+            // Department identifier used for authorization/search
+            public string? DepartmentId { get; set; }
+
             // Department the document belongs to
-            public string Department { get; set; }
+            public string? Department { get; set; }
 
             // Embedded metadata (synced with Metadata collection)
             [BsonElement("Metadata")]

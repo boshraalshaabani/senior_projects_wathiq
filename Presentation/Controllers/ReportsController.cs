@@ -16,57 +16,63 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
         //  عدد الوثائق حسب القسم
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("documents-by-department")]
         public async Task<IActionResult> CountByDepartment()
         {
-            var result = await _reports.GetDocumentsCountByDepartmentAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _reports.GetDocumentsCountByDepartmentAsync(requesterId);
             return Ok(result);
         }
 
         //  عدد الوثائق حسب النوع
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("documents-by-type")]
         public async Task<IActionResult> CountByType()
         {
-            var result = await _reports.GetDocumentsCountByTypeAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _reports.GetDocumentsCountByTypeAsync(requesterId);
             return Ok(result);
         }
 
         //  نشاط المستخدمين
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("user-activity")]
         public async Task<IActionResult> UserActivity()
         {
-            var result = await _reports.GetUserActivityReportAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _reports.GetUserActivityReportAsync(requesterId);
             return Ok(result);
         }
 
         //  تقارير زمنية
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("time-report")]
         public async Task<IActionResult> TimeReport()
         {
-            var result = await _reports.GetTimeReportAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _reports.GetTimeReportAsync(requesterId);
             return Ok(result);
         }
         // ============================
         // B) EXPORT - DEPARTMENT
         // ============================
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/department/excel")]
         public async Task<IActionResult> ExportDeptExcel()
         {
-            var file = await _reports.ExportDepartmentReportExcelAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportDepartmentReportExcelAsync(requesterId);
             return File(file,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "DepartmentReport.xlsx");
         }
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/department/pdf")]
         public async Task<IActionResult> ExportDeptPdf()
         {
-            var file = await _reports.ExportDepartmentReportPdfAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportDepartmentReportPdfAsync(requesterId);
             return File(file,
                 "application/pdf",
                 "DepartmentReport.pdf");
@@ -75,20 +81,22 @@ namespace eArchiveSystem.Presentation.Controllers
         // ============================
         // C) EXPORT - TYPE
         // ============================
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/type/excel")]
         public async Task<IActionResult> ExportTypeExcel()
         {
-            var file = await _reports.ExportTypeReportExcelAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportTypeReportExcelAsync(requesterId);
             return File(file,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "DocumentTypeReport.xlsx");
         }
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/type/pdf")]
         public async Task<IActionResult> ExportTypePdf()
         {
-            var file = await _reports.ExportTypeReportPdfAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportTypeReportPdfAsync(requesterId);
             return File(file,
                 "application/pdf",
                 "DocumentTypeReport.pdf");
@@ -97,29 +105,32 @@ namespace eArchiveSystem.Presentation.Controllers
         // ============================
         // D) EXPORT - USER ACTIVITY
         // ============================
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/user-activity/excel")]
         public async Task<IActionResult> ExportUserExcel()
         {
-            var file = await _reports.ExportUserActivityReportExcelAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportUserActivityReportExcelAsync(requesterId);
             return File(file,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "UserActivityReport.xlsx");
         }
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/user-activity/pdf")]
         public async Task<IActionResult> ExportUserPdf()
         {
-            var file = await _reports.ExportUserActivityReportPdfAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportUserActivityReportPdfAsync(requesterId);
             return File(file,
                 "application/pdf",
                 "UserActivityReport.pdf");
         }
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/all-documents/excel")]
         public async Task<IActionResult> ExportAllDocumentsExcel()
         {
-            var file = await _reports.ExportAllDocumentsExcelAsync();
+            var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
+            var file = await _reports.ExportAllDocumentsExcelAsync(requesterId);
 
             return File(
                 file,

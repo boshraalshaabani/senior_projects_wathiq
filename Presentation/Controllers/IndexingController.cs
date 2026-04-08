@@ -6,7 +6,7 @@ namespace eArchiveSystem.Presentation.Controllers
 {
     [ApiController]
     [Route("api/indexing")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "SystemAdmin")]
     public class IndexingController : ControllerBase
     {
         private readonly IIndexingService _indexingService;

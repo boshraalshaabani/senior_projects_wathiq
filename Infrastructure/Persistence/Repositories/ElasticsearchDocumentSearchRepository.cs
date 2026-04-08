@@ -70,14 +70,14 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             createResponse.EnsureSuccessStatusCode();
         }
 
-        public async Task<(IReadOnlyList<string> Ids, long Total)> SearchAsync(SearchDocumentsDto dto, string? ownerUserId)
+        public async Task<(IReadOnlyList<string> Ids, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
         {
             using var client = CreateClient();
             await EnsureIndexExistsAsync(client);
             using var request = CreateJsonRequest(
                 HttpMethod.Post,
                 $"{_settings.IndexName}/_search",
-                BuildSearchPayload(dto, ownerUserId));
+                BuildSearchPayload(dto, scope));
 
             using var response = await client.SendAsync(request);
 
@@ -301,6 +301,8 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         },
                         category = new { type = "keyword" },
                         documentType = new { type = "keyword" },
+                        institutionId = new { type = "keyword" },
+                        departmentId = new { type = "keyword" },
                         department = new { type = "keyword" },
                         userId = new { type = "keyword" },
                         createdAt = new { type = "date" },
@@ -310,7 +312,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             };
         }
 
-        private static object BuildSearchPayload(SearchDocumentsDto dto, string? ownerUserId)
+        private static object BuildSearchPayload(SearchDocumentsDto dto, SearchAccessScope scope)
         {
             var must = new List<object>();
             var should = new List<object>();
@@ -362,9 +364,19 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 });
             }
 
-            if (!string.IsNullOrWhiteSpace(ownerUserId))
+            if (!string.IsNullOrWhiteSpace(scope.OwnerUserId))
             {
-                filter.Add(new { term = new { userId = ownerUserId } });
+                filter.Add(new { term = new { userId = scope.OwnerUserId } });
+            }
+
+            if (!string.IsNullOrWhiteSpace(scope.InstitutionId))
+            {
+                filter.Add(new { term = new { institutionId = scope.InstitutionId } });
+            }
+
+            if (!string.IsNullOrWhiteSpace(scope.DepartmentId))
+            {
+                filter.Add(new { term = new { departmentId = scope.DepartmentId } });
             }
 
             if (!string.IsNullOrWhiteSpace(dto.Category))
@@ -372,9 +384,10 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 filter.Add(new { term = new { category = dto.Category } });
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.Department))
+            var departmentFilter = string.IsNullOrWhiteSpace(dto.DepartmentId) ? dto.Department : dto.DepartmentId;
+            if (!string.IsNullOrWhiteSpace(departmentFilter))
             {
-                filter.Add(new { term = new { department = dto.Department } });
+                filter.Add(new { term = new { departmentId = departmentFilter } });
             }
 
             if (dto.FromDate.HasValue || dto.ToDate.HasValue)

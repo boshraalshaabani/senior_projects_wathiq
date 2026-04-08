@@ -3,6 +3,7 @@ using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Exceptions;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
+using eArchiveSystem.Application.Security;
 using eArchiveSystem.Domain.Models;
 using eArchiveSystem.Utils;
 
@@ -11,6 +12,7 @@ namespace eArchiveSystem.Application.Services
     public class UserService : IUserService
     {
         private readonly IUserRepository _repo;
+        private readonly IDepartmentRepository _departments;
         private readonly IPasswordHasher _hasher;
         private readonly ITokenService _token;
         private readonly IEmailService _email;
@@ -21,6 +23,7 @@ namespace eArchiveSystem.Application.Services
 
         public UserService(
       IUserRepository repo,
+      IDepartmentRepository departments,
       IPasswordHasher hasher,
       ITokenService token,
       IEmailService email,
@@ -29,6 +32,7 @@ namespace eArchiveSystem.Application.Services
   )
         {
             _repo = repo;
+            _departments = departments;
             _hasher = hasher;
             _token = token;
             _email = email;
@@ -38,11 +42,43 @@ namespace eArchiveSystem.Application.Services
 
 
         // ADD USER  (Instead of Register)
-        public async Task<User> AddUser(AddUserDto dto)
+        public async Task<User> AddUser(AddUserDto dto, string requesterId)
         {
+            var requester = await _repo.GetByIdAsync(requesterId);
+            if (requester == null)
+                throw new NotFoundException("Requester not found");
+
             var exists = await _repo.GetByEmailAsync(dto.Email);
             if (exists != null)
                 throw new ConflictException("Email already used");
+
+            var validRoles = new[]
+            {
+                ApplicationRoles.SystemAdmin,
+                ApplicationRoles.InstitutionAdmin,
+                ApplicationRoles.Manager,
+                ApplicationRoles.Employee
+            };
+
+            if (!validRoles.Contains(dto.Role))
+                throw new ValidationException("Invalid role");
+
+            if (ApplicationRoles.IsInstitutionAdmin(requester.Role))
+            {
+                if (dto.Role != ApplicationRoles.Manager &&
+                    dto.Role != ApplicationRoles.Employee)
+                {
+                    throw new UnauthorizedActionException("Institution admin can only create managers and employees");
+                }
+
+                dto.InstitutionId = requester.InstitutionId;
+            }
+            else if (!ApplicationRoles.IsSystemAdmin(requester.Role))
+            {
+                throw new UnauthorizedActionException("You are not allowed to create users");
+            }
+
+            await ApplyDepartmentAssignmentAsync(dto.InstitutionId, dto.DepartmentId ?? dto.Department, user: null, dto);
 
             string hashedPassword = _hasher.Hash(dto.Password);
 
@@ -52,7 +88,9 @@ namespace eArchiveSystem.Application.Services
                 Email = dto.Email,
                 Password = hashedPassword,
                 Role = dto.Role,
-                Department = dto.Department
+                InstitutionId = dto.InstitutionId,
+                DepartmentId = dto.DepartmentId ?? dto.Department,
+                Department = dto.Department ?? dto.DepartmentId
             };
             await _repo.CreateAsync(user);
             return user;
@@ -182,16 +220,36 @@ namespace eArchiveSystem.Application.Services
         }
 
         // UPDATE USER (Admin)
-        public async Task<string> AssignRole(string id, string newRole)
+        public async Task<string> AssignRole(string id, string newRole, string requesterId)
         {
+            var requester = await _repo.GetByIdAsync(requesterId);
+            if (requester == null)
+                throw new NotFoundException("Requester not found");
+
             var user = await _repo.GetByIdAsync(id);
             if (user == null)
                 throw new NotFoundException("User not found");
 
             // Validate roles
-            var validRoles = new[] { "Admin", "Manager", "User" };
+            var validRoles = new[] { ApplicationRoles.SystemAdmin, ApplicationRoles.InstitutionAdmin, ApplicationRoles.Manager, ApplicationRoles.Employee };
             if (!validRoles.Contains(newRole))
                 throw new ValidationException("Invalid role");
+
+            if (ApplicationRoles.IsInstitutionAdmin(requester.Role))
+            {
+                if (!string.Equals(requester.InstitutionId, user.InstitutionId, StringComparison.OrdinalIgnoreCase))
+                    throw new UnauthorizedActionException("You can only manage users in your institution");
+
+                if (newRole != ApplicationRoles.Manager &&
+                    newRole != ApplicationRoles.Employee)
+                {
+                    throw new UnauthorizedActionException("Institution admin can only assign manager or employee roles");
+                }
+            }
+            else if (!ApplicationRoles.IsSystemAdmin(requester.Role))
+            {
+                throw new UnauthorizedActionException("You are not allowed to assign roles");
+            }
 
             user.Role = newRole;
             user.UpdatedAt = DateTime.Now;
@@ -203,10 +261,28 @@ namespace eArchiveSystem.Application.Services
 
 
         // DELETE USER (Admin)
-        public async Task<string> DeleteUser(string id, string requesterRole)
+        public async Task<string> DeleteUser(string id, string requesterRole, string requesterId)
         {
-            if (requesterRole != "Admin")
-                return "Access denied";
+            var requester = await _repo.GetByIdAsync(requesterId);
+            if (requester == null)
+                throw new NotFoundException("Requester not found");
+
+            var target = await _repo.GetByIdAsync(id);
+            if (target == null)
+                throw new NotFoundException("User not found");
+
+            if (ApplicationRoles.IsInstitutionAdmin(requester.Role))
+            {
+                if (!string.Equals(requester.InstitutionId, target.InstitutionId, StringComparison.OrdinalIgnoreCase))
+                    throw new UnauthorizedActionException("You can only delete users in your institution");
+
+                if (ApplicationRoles.IsSystemAdmin(target.Role) || ApplicationRoles.IsInstitutionAdmin(target.Role))
+                    throw new UnauthorizedActionException("Institution admin cannot delete admin accounts");
+            }
+            else if (!ApplicationRoles.IsSystemAdmin(requesterRole))
+            {
+                throw new UnauthorizedActionException("Access denied");
+            }
 
             await _repo.DeleteAsync(id);
             return "User deleted successfully";
@@ -320,7 +396,7 @@ namespace eArchiveSystem.Application.Services
         {
             var exists = await _repo.GetByEmailAsync(dto.Email);
             if (exists != null)
-                throw new ConflictException("Admin email already exists");
+                throw new ConflictException("System admin email already exists");
 
             string hashedPassword = _hasher.Hash(dto.Password);
 
@@ -329,18 +405,35 @@ namespace eArchiveSystem.Application.Services
                 Name = dto.Name,
                 Email = dto.Email,
                 Password = hashedPassword,
-                Role = "Admin"
+                Role = ApplicationRoles.SystemAdmin
             };
 
             await _repo.CreateAsync(admin);
 
             return admin;
         }
-        public async Task<string> EditUser(string id, UpdateUserDto dto)
+        public async Task<string> EditUser(string id, UpdateUserDto dto, string requesterId)
         {
+            var requester = await _repo.GetByIdAsync(requesterId);
+            if (requester == null)
+                throw new NotFoundException("Requester not found");
+
             var user = await _repo.GetByIdAsync(id);
             if (user == null)
                 throw new NotFoundException("User not found");
+
+            if (ApplicationRoles.IsInstitutionAdmin(requester.Role))
+            {
+                if (!string.Equals(requester.InstitutionId, user.InstitutionId, StringComparison.OrdinalIgnoreCase))
+                    throw new UnauthorizedActionException("You can only edit users in your institution");
+
+                if (ApplicationRoles.IsSystemAdmin(user.Role) || ApplicationRoles.IsInstitutionAdmin(user.Role))
+                    throw new UnauthorizedActionException("Institution admin cannot edit admin accounts");
+            }
+            else if (!ApplicationRoles.IsSystemAdmin(requester.Role))
+            {
+                throw new UnauthorizedActionException("You are not allowed to edit users");
+            }
 
             // تعديل الاسم
             if (!string.IsNullOrEmpty(dto.Name))
@@ -353,6 +446,14 @@ namespace eArchiveSystem.Application.Services
             // تعديل كلمة المرور من قبل الأدمن
             if (!string.IsNullOrEmpty(dto.NewPassword))
                 user.Password = _hasher.Hash(dto.NewPassword);
+
+            if (!string.IsNullOrWhiteSpace(dto.InstitutionId) && ApplicationRoles.IsSystemAdmin(requester.Role))
+                user.InstitutionId = dto.InstitutionId;
+
+            if (!string.IsNullOrWhiteSpace(dto.DepartmentId) || !string.IsNullOrWhiteSpace(dto.Department))
+            {
+                await ApplyDepartmentAssignmentAsync(user.InstitutionId, dto.DepartmentId ?? dto.Department, user, dto);
+            }
 
             user.UpdatedAt = DateTime.Now;
 
@@ -411,6 +512,7 @@ namespace eArchiveSystem.Application.Services
         public async Task<List<UserDto>> GetUsers(string? role, string? search, string currentUserId)
         {
             var users = await _repo.GetAllAsync();
+            var currentUser = await _repo.GetByIdAsync(currentUserId);
 
             // استثناء المستخدم الحالي من النتائج
             users = users.Where(u => u.Id != currentUserId).ToList();
@@ -421,6 +523,14 @@ namespace eArchiveSystem.Application.Services
                 users = users
                         .Where(u => u.Role.Equals(role, StringComparison.OrdinalIgnoreCase))
                         .ToList();
+            }
+
+            if (currentUser != null && ApplicationRoles.IsInstitutionAdmin(currentUser.Role))
+            {
+                users = users
+                    .Where(u => string.Equals(u.InstitutionId, currentUser.InstitutionId, StringComparison.OrdinalIgnoreCase))
+                    .Where(u => !ApplicationRoles.IsSystemAdmin(u.Role) && !ApplicationRoles.IsInstitutionAdmin(u.Role))
+                    .ToList();
             }
 
             // بحث بالاسم أو الإيميل
@@ -438,13 +548,19 @@ namespace eArchiveSystem.Application.Services
                 Id = u.Id,
                 Name = u.Name,
                 Email = u.Email,
-                Role = u.Role
+                Role = u.Role,
+                InstitutionId = u.InstitutionId,
+                DepartmentId = u.DepartmentId,
+                Department = u.Department
             }).ToList();
         }
         public async Task CreateBootstrapAdminIfNotExists()
         {
-            var adminExists = await _repo.GetByRoleAsync("Admin");
-            if (adminExists.Any()) return;
+            var systemAdminExists = await _repo.GetByRoleAsync(ApplicationRoles.SystemAdmin);
+            if (systemAdminExists.Any()) return;
+
+            var legacyAdminExists = await _repo.GetByRoleAsync(ApplicationRoles.LegacySystemAdmin);
+            if (legacyAdminExists.Any()) return;
 
             var name = _config["BootstrapAdmin:Name"];
             var email = _config["BootstrapAdmin:Email"];
@@ -457,7 +573,7 @@ namespace eArchiveSystem.Application.Services
                 Name = name,
                 Email = email,
                 Password = hashed,
-                Role = "Admin"
+                Role = ApplicationRoles.SystemAdmin
             });
         }
 
@@ -495,6 +611,60 @@ namespace eArchiveSystem.Application.Services
                 User = user,
                 Requires2FA = false
             };
+        }
+
+        private async Task ApplyDepartmentAssignmentAsync(string? institutionId, string? requestedDepartmentId, User? user, AddUserDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(requestedDepartmentId))
+            {
+                dto.DepartmentId = null;
+                dto.Department = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(institutionId))
+                throw new ValidationException("InstitutionId is required when assigning a department");
+
+            var department = await _departments.GetByIdAsync(requestedDepartmentId.Trim());
+            if (department == null)
+                throw new NotFoundException("Department not found");
+
+            if (!string.Equals(department.InstitutionId, institutionId, StringComparison.OrdinalIgnoreCase))
+                throw new ValidationException("Department does not belong to the selected institution");
+
+            dto.DepartmentId = department.Id;
+            dto.Department = department.Name;
+
+            if (user != null)
+            {
+                user.DepartmentId = department.Id;
+                user.Department = department.Name;
+            }
+        }
+
+        private async Task ApplyDepartmentAssignmentAsync(string? institutionId, string? requestedDepartmentId, User user, UpdateUserDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(requestedDepartmentId))
+            {
+                user.DepartmentId = null;
+                user.Department = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(institutionId))
+                throw new ValidationException("InstitutionId is required when assigning a department");
+
+            var department = await _departments.GetByIdAsync(requestedDepartmentId.Trim());
+            if (department == null)
+                throw new NotFoundException("Department not found");
+
+            if (!string.Equals(department.InstitutionId, institutionId, StringComparison.OrdinalIgnoreCase))
+                throw new ValidationException("Department does not belong to the selected institution");
+
+            dto.DepartmentId = department.Id;
+            dto.Department = department.Name;
+            user.DepartmentId = department.Id;
+            user.Department = department.Name;
         }
 
 

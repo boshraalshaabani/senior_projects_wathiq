@@ -5,6 +5,8 @@ namespace eArchiveSystem.Application.DTOs
         public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string InstitutionId { get; set; } = string.Empty;
+        public string DepartmentId { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
         public string? Category { get; set; }

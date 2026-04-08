@@ -14,11 +14,11 @@ namespace eArchiveSystem.Application.Interfaces.Services
         Task<bool> GetTwoFactorEnabled(string userId);
         Task<string> SetTwoFactorEnabled(string userId, bool enabled);
 
-        Task<User> AddUser(AddUserDto dto);
-        Task<string> DeleteUser(string id, string requesterRole);
-        Task<string> AssignRole(string userId, string role);
+        Task<User> AddUser(AddUserDto dto, string requesterId);
+        Task<string> DeleteUser(string id, string requesterRole, string requesterId);
+        Task<string> AssignRole(string userId, string role, string requesterId);
         Task<User> CreateAdmin(CreateAdminDto dto);
-        Task<string> EditUser(string id, UpdateUserDto dto);
+        Task<string> EditUser(string id, UpdateUserDto dto, string requesterId);
         Task<string> ForgotPassword(ForgotPasswordDto dto);
         Task<string> ResetPassword(ResetPasswordDto dto);
         Task<List<UserDto>> GetUsers(string? role, string? search, string currentUserId);
