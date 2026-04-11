@@ -16,15 +16,15 @@ namespace eArchiveSystem.Application.Services
             "InstitutionAdmin is restricted to documents inside the same institution.",
             "Manager is restricted to documents inside the same institution and same department only.",
             "Employee is restricted to own documents only.",
-            "Search scope follows the same institution and department rules."
+            "Search scope follows the same institution and department rules.",
+            "Document workflow implemented with status transitions: Draft -> Submitted -> Approved/Rejected -> Published"
         };
 
         private static readonly string[] PendingItems =
         {
             "Reports and dashboard still need endpoint-level verification after the new scoping changes.",
             "Audit visibility still needs real-world verification with institution and department test data.",
-            "Legacy system admin data may still need migration/cleanup.",
-            "A document processing status workflow is not implemented yet."
+            "Legacy system admin data may still need migration/cleanup."
         };
 
         private readonly IUserRepository _users;
@@ -83,16 +83,26 @@ namespace eArchiveSystem.Application.Services
             var document = await _documents.GetByIdAsync(documentId)
                 ?? throw new NotFoundException("Document not found");
 
+            var canView = _authorization.CanView(actor, document);
+
             return new DocumentPermissionCheckDto
             {
                 DocumentId = document.Id,
-                OwnerUserId = document.UserId,
-                InstitutionId = document.InstitutionId,
-                DepartmentId = document.DepartmentId,
-                Department = document.Department,
-                CanView = _authorization.CanView(actor, document),
-                CanEdit = _authorization.CanEdit(actor, document),
-                CanDelete = _authorization.CanDelete(actor, document)
+                // إذا لا يمكن العرض، لا نرجع تفاصيل حساسة
+                OwnerUserId = canView ? document.UserId : null,
+                InstitutionId = canView ? document.InstitutionId : null,
+                DepartmentId = canView ? document.DepartmentId : null,
+                Department = canView ? document.Department : null,
+                Status = canView ? document.Status : default,
+                CanView = canView,
+                CanEdit = canView && _authorization.CanEdit(actor, document),
+                CanDelete = canView && _authorization.CanDelete(actor, document),
+                CanSubmit = canView && _authorization.CanSubmit(actor, document),
+                CanStartReview = canView && _authorization.CanStartReview(actor, document),
+                CanApprove = canView && _authorization.CanApprove(actor, document),
+                CanReject = canView && _authorization.CanReject(actor, document),
+                CanPublish = canView && _authorization.CanPublish(actor, document),
+                CanArchive = canView && _authorization.CanArchive(actor, document)
             };
         }
 

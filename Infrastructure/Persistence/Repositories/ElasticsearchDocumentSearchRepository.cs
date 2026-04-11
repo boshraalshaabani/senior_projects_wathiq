@@ -405,6 +405,11 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 });
             }
 
+            if (dto.Status.HasValue)
+            {
+                filter.Add(new { term = new { status = dto.Status.Value.ToString() } });
+            }
+
             var boolQuery = new
             {
                 @bool = new

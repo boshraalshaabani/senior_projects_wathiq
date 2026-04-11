@@ -48,6 +48,40 @@ namespace eArchiveSystem.Domain.Models
             // Department the document belongs to
             public string? Department { get; set; }
 
+            // Document workflow status
+            [BsonElement("status")]
+            public DocumentStatus Status { get; set; } = DocumentStatus.Draft;
+
+            // Workflow timestamps
+            [BsonElement("submittedAt")]
+            public DateTime? SubmittedAt { get; set; }
+
+            [BsonElement("reviewStartedAt")]
+            public DateTime? ReviewStartedAt { get; set; }
+
+            [BsonElement("reviewedAt")]
+            public DateTime? ReviewedAt { get; set; }
+
+            [BsonElement("publishedAt")]
+            public DateTime? PublishedAt { get; set; }
+
+            [BsonElement("archivedAt")]
+            public DateTime? ArchivedAt { get; set; }
+
+            // Workflow actors
+            [BsonElement("reviewedByUserId")]
+            public string? ReviewedByUserId { get; set; }
+
+            [BsonElement("publishedByUserId")]
+            public string? PublishedByUserId { get; set; }
+
+            [BsonElement("archivedByUserId")]
+            public string? ArchivedByUserId { get; set; }
+
+            // Rejection reason
+            [BsonElement("rejectionReason")]
+            public string? RejectionReason { get; set; }
+
             // Embedded metadata (synced with Metadata collection)
             [BsonElement("Metadata")]
             public Metadata? Metadata { get; set; }

@@ -84,6 +84,7 @@ builder.Services.AddScoped<ITextPreprocessorService, TextPreprocessorService>();
 builder.Services.AddScoped<IIndexingService, IndexingService>();
 builder.Services.AddScoped<IDocumentAuthorizationService, DocumentAuthorizationService>();
 builder.Services.AddScoped<IPermissionReviewService, PermissionReviewService>();
+builder.Services.AddScoped<IDocumentWorkflowService, DocumentWorkflowService>();
 builder.Services.AddScoped<IAnalyticsScopeService, AnalyticsScopeService>();
 
 QuestPDF.Settings.License = LicenseType.Community;
@@ -95,6 +96,20 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 var jwtKey = builder.Configuration["Jwt:Key"];
 var issuer = builder.Configuration["Jwt:Issuer"];
 var audience = builder.Configuration["Jwt:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    // Keep the API alive even when local config is incomplete.
+    jwtKey = Environment.GetEnvironmentVariable("JWT__KEY");
+}
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    jwtKey = "Wathiq_Local_Development_Key_Change_Me_2026";
+}
+
+issuer = string.IsNullOrWhiteSpace(issuer) ? "eArchiveSystem" : issuer;
+audience = string.IsNullOrWhiteSpace(audience) ? "eArchiveSystemUsers" : audience;
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -127,8 +142,15 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-    await userService.CreateBootstrapAdminIfNotExists();
+    try
+    {
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+        await userService.CreateBootstrapAdminIfNotExists();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Bootstrap admin seeding failed at startup. Continuing without stopping the API.");
+    }
 }
 
 if (app.Environment.IsDevelopment())
