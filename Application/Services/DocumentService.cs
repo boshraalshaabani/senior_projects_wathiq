@@ -97,6 +97,7 @@ namespace eArchiveSystem.Application.Services
                 InstitutionId = owner.InstitutionId,
                 DepartmentId = owner.DepartmentId ?? owner.Department,
                 Department = owner.Department ?? owner.DepartmentId,
+                Status = DocumentStatus.Processing,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -255,6 +256,8 @@ namespace eArchiveSystem.Application.Services
                 doc.FileHash = newHash;
                 doc.FilePath = newPath;
                 doc.Content = null;
+                doc.Metadata = null;
+                doc.Status = DocumentStatus.Processing;
                 fileWasReplaced = true;
             }
 

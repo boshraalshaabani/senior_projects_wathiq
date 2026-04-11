@@ -10,5 +10,13 @@ namespace eArchiveSystem.Application.Interfaces.Services
         bool CanEdit(User actor, Document document);
         bool CanDelete(User actor, Document document);
         SearchAccessScope BuildSearchScope(User actor);
+
+        // Workflow permissions
+        bool CanSubmit(User actor, Document document);
+        bool CanStartReview(User actor, Document document);
+        bool CanApprove(User actor, Document document);
+        bool CanReject(User actor, Document document);
+        bool CanPublish(User actor, Document document);
+        bool CanArchive(User actor, Document document);
     }
 }

@@ -110,6 +110,7 @@ namespace eArchiveSystem.Application.Services
                 UserId = document.UserId,
                 Category = metadata?.Category,
                 DocumentType = metadata?.DocumentType,
+                Status = document.Status,
                 Tags = metadata?.Tags ?? new List<string>(),
                 CreatedAt = document.CreatedAt,
                 UpdatedAt = document.UpdatedAt

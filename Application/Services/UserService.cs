@@ -566,6 +566,13 @@ namespace eArchiveSystem.Application.Services
             var email = _config["BootstrapAdmin:Email"];
             var password = _config["BootstrapAdmin:Password"];
 
+            if (string.IsNullOrWhiteSpace(name) ||
+                string.IsNullOrWhiteSpace(email) ||
+                string.IsNullOrWhiteSpace(password))
+            {
+                return;
+            }
+
             var hashed = _hasher.Hash(password);
 
             await _repo.CreateAsync(new User

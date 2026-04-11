@@ -49,7 +49,7 @@ namespace eArchiveSystem.Controllers
                 requires2FA = false
             });
         }
-
+        
 
         // LOGOUT
         [HttpPost("logout")]
