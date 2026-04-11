@@ -1,4 +1,6 @@
-﻿namespace eArchiveSystem.Application.DTOs
+﻿using eArchiveSystem.Domain.Models;
+
+namespace eArchiveSystem.Application.DTOs
 {
     public class SearchDocumentsDto
     {
@@ -6,6 +8,7 @@
         public string? Category { get; set; }   // فلتر اختياري
         public string? Department { get; set; }
         public string? DepartmentId { get; set; }
+        public DocumentStatus? Status { get; set; } // فلتر على حالة الوثيقة
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; } 
         public string? SortBy { get; set; }     // Title, CreatedAt, etc.

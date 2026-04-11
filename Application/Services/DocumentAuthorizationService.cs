@@ -31,14 +31,20 @@ namespace eArchiveSystem.Application.Services
 
         public bool CanEdit(User actor, Document document)
         {
-            if (ApplicationRoles.IsManager(actor.Role))
-                return SameInstitution(actor, document) && SameDepartment(actor, document);
+            // Employee: only Draft and Rejected
+            if (ApplicationRoles.IsEmployee(actor.Role))
+                return (document.Status == DocumentStatus.Draft || document.Status == DocumentStatus.Rejected) && document.UserId == actor.Id;
 
-            return document.UserId == actor.Id;
+            // Manager: no general edit on Submitted (use CanReviewEdit if needed)
+            return false;
         }
 
         public bool CanDelete(User actor, Document document)
         {
+            // Only Draft and Rejected can be deleted
+            if (document.Status != DocumentStatus.Draft && document.Status != DocumentStatus.Rejected)
+                return false;
+
             if (ApplicationRoles.IsManager(actor.Role))
                 return SameInstitution(actor, document) && SameDepartment(actor, document);
 
@@ -126,5 +132,55 @@ namespace eArchiveSystem.Application.Services
                 : string.IsNullOrWhiteSpace(fallbackDepartment)
                     ? null
                     : fallbackDepartment.Trim();
+
+        // Workflow permissions
+        public bool CanSubmit(User actor, Document document)
+        {
+            // Only owner can submit their draft
+            return document.UserId == actor.Id && document.Status == DocumentStatus.Draft;
+        }
+
+        public bool CanApprove(User actor, Document document)
+        {
+            // Manager can approve submitted documents in same institution and department
+            return ApplicationRoles.IsManager(actor.Role) &&
+                   document.Status == DocumentStatus.Submitted &&
+                   SameInstitution(actor, document) &&
+                   SameDepartment(actor, document);
+        }
+
+        public bool CanReject(User actor, Document document)
+        {
+            // Manager can reject submitted documents in same institution and department
+            return ApplicationRoles.IsManager(actor.Role) &&
+                   document.Status == DocumentStatus.Submitted &&
+                   SameInstitution(actor, document) &&
+                   SameDepartment(actor, document);
+        }
+
+        public bool CanPublish(User actor, Document document)
+        {
+            // InstitutionAdmin can publish approved documents in same institution
+            return ApplicationRoles.IsInstitutionAdmin(actor.Role) &&
+                   document.Status == DocumentStatus.Approved &&
+                   SameInstitution(actor, document);
+        }
+
+        public bool CanStartReview(User actor, Document document)
+        {
+            // Manager can start review on submitted documents in same institution and department
+            return ApplicationRoles.IsManager(actor.Role) &&
+                   document.Status == DocumentStatus.Submitted &&
+                   SameInstitution(actor, document) &&
+                   SameDepartment(actor, document);
+        }
+
+        public bool CanArchive(User actor, Document document)
+        {
+            // InstitutionAdmin can archive published documents in same institution
+            return ApplicationRoles.IsInstitutionAdmin(actor.Role) &&
+                   document.Status == DocumentStatus.Published &&
+                   SameInstitution(actor, document);
+        }
     }
 }

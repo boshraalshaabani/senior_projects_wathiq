@@ -78,6 +78,8 @@ namespace eArchiveSystem.Presentation.Controllers
 
             await _indexingService.SyncDocumentAsync(documentId);
 
+            await _documents.UpdateStatusAsync(documentId, DocumentStatus.Draft);
+
             return Ok("OCR processed successfully");
         }
 

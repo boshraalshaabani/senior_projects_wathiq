@@ -1,4 +1,4 @@
-﻿using eArchiveSystem.Application.Interfaces.Security;
+using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Domain.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -19,7 +19,18 @@ namespace eArchiveSystem.Infrastructure.Security
 
         public string GenerateJwtToken(User user)
         {
-            var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]);
+            var configuredKey = _config["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(configuredKey))
+            {
+                configuredKey = Environment.GetEnvironmentVariable("JWT__KEY");
+            }
+
+            if (string.IsNullOrWhiteSpace(configuredKey))
+            {
+                configuredKey = "Wathiq_Local_Development_Key_Change_Me_2026";
+            }
+
+            var key = Encoding.UTF8.GetBytes(configuredKey);
 
             var claims = new[]
             {

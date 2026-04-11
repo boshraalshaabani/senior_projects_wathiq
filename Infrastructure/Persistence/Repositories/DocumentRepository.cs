@@ -84,6 +84,21 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         }
 
         // =========================================================
+        // UPDATE (PARTIAL) – Status فقط
+        // =========================================================
+        public async Task UpdateStatusAsync(string documentId, DocumentStatus status)
+        {
+            var update = Builders<Document>.Update
+                .Set(d => d.Status, status)
+                .Set(d => d.UpdatedAt, DateTime.UtcNow);
+
+            await _documents.UpdateOneAsync(
+                d => d.Id == documentId,
+                update
+            );
+        }
+
+        // =========================================================
         // UPDATE (PARTIAL) – OCR Content فقط
         // =========================================================
         public async Task UpdateContentAsync(

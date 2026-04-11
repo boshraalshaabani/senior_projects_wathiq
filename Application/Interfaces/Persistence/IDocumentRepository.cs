@@ -20,6 +20,9 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
         // Full document replace (use with caution)
         Task UpdateAsync(string id, Document document);
 
+        // Partial status update for OCR / processing workflow
+        Task UpdateStatusAsync(string id, DocumentStatus status);
+
         // Advanced search (text + metadata + role)
         Task<List<Document>> SearchAsync(
             SearchDocumentsDto dto,
