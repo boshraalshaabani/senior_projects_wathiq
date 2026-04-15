@@ -9,6 +9,10 @@
 bin/
 obj/
 
+# .NET & NuGet local caches
+.nuget/
+.dotnet/
+
 # Rider / VSCode
 .idea/
 .vscode/
