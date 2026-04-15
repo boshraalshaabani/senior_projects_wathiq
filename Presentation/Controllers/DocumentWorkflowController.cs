@@ -8,7 +8,7 @@ namespace eArchiveSystem.Presentation.Controllers
     [ApiController]
     [Route("api/documents/{documentId}/workflow")]
     [Authorize]
-    public class DocumentWorkflowController : ControllerBase
+    public class DocumentWorkflowController : ControllerBase 
     {
         private readonly IDocumentWorkflowService _workflowService;
 
@@ -17,7 +17,7 @@ namespace eArchiveSystem.Presentation.Controllers
             _workflowService = workflowService;
         }
 
-        [HttpPost("submit")]
+        [HttpPost("submit")] 
         public async Task<IActionResult> Submit(string documentId)
         {
             var userId = User.FindFirst("sub")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

@@ -16,6 +16,7 @@ namespace eArchiveSystem.Application.Services
         private readonly IDocumentAuthorizationService _authorization;
         private readonly IAuditService _audit;
         private readonly IIndexingService _indexing;
+        private readonly INotificationService _notifications;
 
         public DocumentWorkflowService(
             IUserRepository users,
@@ -24,7 +25,8 @@ namespace eArchiveSystem.Application.Services
             IMetadataRepository metadata,
             IDocumentAuthorizationService authorization,
             IAuditService audit,
-            IIndexingService indexing)
+            IIndexingService indexing,
+            INotificationService notifications)
         {
             _users = users;
             _documents = documents;
@@ -33,6 +35,7 @@ namespace eArchiveSystem.Application.Services
             _authorization = authorization;
             _audit = audit;
             _indexing = indexing;
+            _notifications = notifications;
         }
 
         private static bool EnsureValidTransition(DocumentStatus current, DocumentStatus next)
@@ -146,6 +149,7 @@ namespace eArchiveSystem.Application.Services
             await _documents.UpdateAsync(document.Id, document);
             await _audit.LogAsync(userId, actor.Role, "ApproveDocument", documentId, $"Approved document from {previousStatus}");
             await _indexing.SyncDocumentAsync(documentId);
+            await _notifications.NotifyDocumentApprovedAsync(document, actor);
 
             var resultDto = new WorkflowActionResultDto
             {
@@ -186,6 +190,7 @@ namespace eArchiveSystem.Application.Services
             await _documents.UpdateAsync(document.Id, document);
             await _audit.LogAsync(userId, actor.Role, "RejectDocument", documentId, $"Rejected document from {previousStatus}: {decision.Comment}");
             await _indexing.SyncDocumentAsync(documentId);
+            await _notifications.NotifyDocumentRejectedAsync(document, actor, decision.Comment);
 
             var resultDto = new WorkflowActionResultDto
             {
@@ -329,6 +334,7 @@ namespace eArchiveSystem.Application.Services
                 $"Transferred document from department '{previousDepartmentName ?? previousDepartmentId ?? "Unknown"}' to '{targetDepartment.Name}'. Justification: {dto.Justification.Trim()}");
 
             await _indexing.SyncDocumentAsync(documentId);
+            await _notifications.NotifyDocumentTransferredAsync(document, actor, previousDepartmentName ?? previousDepartmentId, targetDepartment, dto.Justification);
 
             var resultDto = new DocumentTransferResultDto
             {

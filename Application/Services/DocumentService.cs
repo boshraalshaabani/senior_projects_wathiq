@@ -21,6 +21,8 @@ namespace eArchiveSystem.Application.Services
         private readonly IConfiguration _config;
         private readonly IIndexingService _indexing;
         private readonly IDocumentAuthorizationService _authorization;
+        private readonly INotificationService _notifications;
+        private readonly IDocumentWatermarkService _watermarkService;
         private readonly ILogger<DocumentService> _logger;
 
         public DocumentService(
@@ -34,6 +36,8 @@ namespace eArchiveSystem.Application.Services
             IConfiguration config,
             IIndexingService indexing,
             IDocumentAuthorizationService authorization,
+            INotificationService notifications,
+            IDocumentWatermarkService watermarkService,
             ILogger<DocumentService> logger)
         {
             _documents = documents;
@@ -46,6 +50,8 @@ namespace eArchiveSystem.Application.Services
             _config = config;
             _indexing = indexing;
             _authorization = authorization;
+            _notifications = notifications;
+            _watermarkService = watermarkService;
             _logger = logger;
         }
 
@@ -98,6 +104,7 @@ namespace eArchiveSystem.Application.Services
                 DepartmentId = owner.DepartmentId ?? owner.Department,
                 Department = owner.Department ?? owner.DepartmentId,
                 Priority = dto.Priority ?? DocumentPriority.Normal,
+                IsSensitive = dto.IsSensitive,
                 Status = DocumentStatus.Processing,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -178,6 +185,7 @@ namespace eArchiveSystem.Application.Services
                 DepartmentId = doc.DepartmentId,
                 Department = doc.Department,
                 Priority = doc.Priority,
+                IsSensitive = doc.IsSensitive,
                 Status = doc.Status,
                 OwnerName = owner?.Name,
                 CreatedAt = doc.CreatedAt,
@@ -206,8 +214,6 @@ namespace eArchiveSystem.Application.Services
             if (!File.Exists(fullPath))
                 throw new NotFoundException("Document file not found");
 
-            var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-
             await _audit.LogAsync(
                 userId,
                 role,
@@ -215,7 +221,7 @@ namespace eArchiveSystem.Application.Services
                 id,
                 $"User {userId} downloaded document {id}");
 
-            return (stream, doc.FileName, doc.ContentType);
+            return await _watermarkService.PrepareDownloadAsync(doc, actor, fullPath);
         }
 
         public async Task<DocumentUpdateResult> UpdateDocumentAsync(
@@ -239,6 +245,9 @@ namespace eArchiveSystem.Application.Services
 
             if (dto.Priority.HasValue)
                 doc.Priority = dto.Priority.Value;
+
+            if (dto.IsSensitive.HasValue)
+                doc.IsSensitive = dto.IsSensitive.Value;
 
             var fileWasReplaced = false;
 
@@ -288,6 +297,8 @@ namespace eArchiveSystem.Application.Services
                 "UpdateDocument",
                 documentId,
                 $"User {userId} updated document {documentId}");
+
+            await _notifications.NotifyDocumentUpdatedAsync(doc, actor);
 
             return new DocumentUpdateResult
             {

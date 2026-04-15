@@ -8,6 +8,6 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
         Task DeleteAsync(string documentId);
         Task EnsureIndexExistsAsync();
         Task RecreateIndexAsync();
-        Task<(IReadOnlyList<string> Ids, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope);
+        Task<(IReadOnlyList<SearchDocumentHit> Hits, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope);
     }
 }

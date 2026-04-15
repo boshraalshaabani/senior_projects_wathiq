@@ -1,17 +1,12 @@
-﻿using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Persistence;
-using eArchiveSystem.Application.Security;
 using eArchiveSystem.Domain.Models;
-using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace eArchiveSystem.Infrastructure.Persistence.Repositories
 {
     public class DocumentRepository : IDocumentRepository
     {
-        // Collection الأساسية للوثائق
         private readonly IMongoCollection<Document> _documents;
-        // Collection الخاصة بالـ Metadata (مستقلة)
         private readonly IMongoCollection<Metadata> _metadata;
 
         public DocumentRepository(IMongoDatabase database)
@@ -20,17 +15,11 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             _metadata = database.GetCollection<Metadata>("Metadata");
         }
 
-        // ========================================================= 
-        // CREATE
-        // =========================================================
         public async Task CreateAsync(Document document)
         {
             await _documents.InsertOneAsync(document);
         }
 
-        // =========================================================
-        // GET
-        // =========================================================
         public async Task<Document?> GetByIdAsync(string id)
         {
             return await _documents
@@ -69,23 +58,14 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
-        // =========================================================
-        // UPDATE (FULL) استخدمها فقط عندما تكون الوثيقة كاملة
-        // =========================================================
         public async Task UpdateAsync(string id, Document document)
         {
-            
-            // هذه الدالة تستبدل الوثيقة بالكامل
-            // لا تستخدمها بعد OCR أو بعد AttachMetadataAsync
             await _documents.ReplaceOneAsync(
                 d => d.Id == id,
                 document
             );
         }
 
-        // =========================================================
-        // UPDATE (PARTIAL) – Status فقط
-        // =========================================================
         public async Task UpdateStatusAsync(string documentId, DocumentStatus status)
         {
             var update = Builders<Document>.Update
@@ -98,9 +78,6 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             );
         }
 
-        // =========================================================
-        // UPDATE (PARTIAL) – OCR Content فقط
-        // =========================================================
         public async Task UpdateContentAsync(
             string documentId,
             string content,
@@ -120,12 +97,8 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             );
         }
 
-        // =========================================================
-        // METADATA – Embed كامل داخل Document
-        // =========================================================
         public async Task AttachMetadataAsync(string documentId)
         {
-            // نجلب الميتاداتا من collection الخاصة بها
             var metadata = await _metadata
                 .Find(m => m.Id == documentId)
                 .FirstOrDefaultAsync();
@@ -143,9 +116,6 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             );
         }
 
-        // =========================================================
-        // METADATA – Update الحقول فقط (بدون استبدال)
-        // =========================================================
         public async Task UpdateMetadataFieldsAsync(
             string documentId,
             Metadata metadata
@@ -186,111 +156,10 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             );
         }
 
-        // =========================================================
-        // DELETE
-        // =========================================================
         public async Task<bool> DeleteAsync(string id)
         {
             var result = await _documents.DeleteOneAsync(d => d.Id == id);
             return result.DeletedCount > 0;
-        }
-
-        // =========================================================
-        // SEARCH (كما هو – بدون تغيير)
-        // =========================================================
-        public async Task<List<Document>> SearchAsync(
-            SearchDocumentsDto dto,
-            string userId,
-            string role
-        )
-        {
-            var filters = new List<FilterDefinition<Document>>();
-
-            if (role == ApplicationRoles.Employee)
-                filters.Add(Builders<Document>.Filter.Eq(d => d.UserId, userId));
-
-            if (!string.IsNullOrEmpty(dto.Query))
-            {
-                var text = new BsonRegularExpression(dto.Query, "i");
-
-                filters.Add(
-                    Builders<Document>.Filter.Or(
-                        Builders<Document>.Filter.Regex(d => d.Title, text),
-                        Builders<Document>.Filter.Regex("Metadata.Description", text),
-                        Builders<Document>.Filter.Regex("Metadata.Tags", text),
-                        Builders<Document>.Filter.Regex("Metadata.Category", text),
-                        Builders<Document>.Filter.Regex("Metadata.DocumentType", text)
-                    )
-                );
-            }
-
-            if (!string.IsNullOrEmpty(dto.Category))
-                filters.Add(
-                    Builders<Document>.Filter.Eq(
-                        d => d.Metadata.Category,
-                        dto.Category
-                    )
-                );
-
-            if (!string.IsNullOrEmpty(dto.Department))
-                filters.Add(
-                    Builders<Document>.Filter.Eq(
-                        d => d.Department,
-                        dto.Department
-                    )
-                );
-
-            if (dto.Status.HasValue)
-                filters.Add(
-                    Builders<Document>.Filter.Eq(
-                        d => d.Status,
-                        dto.Status.Value
-                    )
-                );
-
-            if (dto.Priority.HasValue)
-                filters.Add(
-                    Builders<Document>.Filter.Eq(
-                        d => d.Priority,
-                        dto.Priority.Value
-                    )
-                );
-
-            if (dto.FromDate != null)
-                filters.Add(
-                    Builders<Document>.Filter.Gte(d => d.CreatedAt, dto.FromDate)
-                );
-
-            if (dto.ToDate != null)
-                filters.Add(
-                    Builders<Document>.Filter.Lte(d => d.CreatedAt, dto.ToDate)
-                );
-
-            var finalFilter = filters.Count > 0
-                ? Builders<Document>.Filter.And(filters)
-                : Builders<Document>.Filter.Empty;
-
-            var sort = dto.SortBy switch
-            {
-                "Title" => dto.Desc
-                    ? Builders<Document>.Sort.Descending(d => d.Title)
-                    : Builders<Document>.Sort.Ascending(d => d.Title),
-
-                "CreatedAt" => dto.Desc
-                    ? Builders<Document>.Sort.Descending(d => d.CreatedAt)
-                    : Builders<Document>.Sort.Ascending(d => d.CreatedAt),
-
-                "Priority" => dto.Desc
-                    ? Builders<Document>.Sort.Descending(d => d.Priority)
-                    : Builders<Document>.Sort.Ascending(d => d.Priority),
-
-                _ => Builders<Document>.Sort.Descending(d => d.CreatedAt)
-            };
-
-            return await _documents
-                .Find(finalFilter)
-                .Sort(sort)
-                .ToListAsync();
         }
     }
 }

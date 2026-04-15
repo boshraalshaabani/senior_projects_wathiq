@@ -7,6 +7,7 @@ using eArchiveSystem.Infrastructure.Persistence.Repositories;
 using eArchiveSystem.Infrastructure.Security;
 using eArchiveSystem.Presentation.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,27 @@ builder.Configuration.AddJsonFile(
     "appsettings.Development.local.json",
     optional: true,
     reloadOnChange: true);
+
+// Keep startup logging portable and avoid Windows Event Log permission issues
+// during local development and CLI-based runs.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+var dataProtectionBuilder = builder.Services
+    .AddDataProtection()
+    .SetApplicationName("eArchiveSystem");
+
+if (builder.Environment.IsDevelopment())
+{
+    var localDataProtectionKeyPath = Path.Combine(
+        builder.Environment.ContentRootPath,
+        ".local",
+        "data-protection-keys");
+
+    Directory.CreateDirectory(localDataProtectionKeyPath);
+    dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(localDataProtectionKeyPath));
+}
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -56,6 +78,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IMetadataRepository, MetadataRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IInstitutionSettingsRepository, InstitutionSettingsRepository>();
 
@@ -79,7 +102,9 @@ builder.Services.AddScoped<IMetadataService, MetadataService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IInstitutionSettingsService, InstitutionSettingsService>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IDocumentWatermarkService, DocumentWatermarkService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRuleBasedAnalyzer, RuleBasedAnalyzer>();
@@ -168,7 +193,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-app.UseHttpsRedirection();
+
+var enableHttpsRedirection = !app.Environment.IsDevelopment()
+    || builder.Configuration.GetValue<bool>("UseHttpsRedirection");
+
+if (enableHttpsRedirection)
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();

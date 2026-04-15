@@ -52,6 +52,10 @@ namespace eArchiveSystem.Domain.Models
             [BsonElement("priority")]
             public DocumentPriority Priority { get; set; } = DocumentPriority.Normal;
 
+            // Sensitivity label used by secure download workflows
+            [BsonElement("isSensitive")]
+            public bool IsSensitive { get; set; } = false;
+
             // Document workflow status
             [BsonElement("status")]
             public DocumentStatus Status { get; set; } = DocumentStatus.Draft;

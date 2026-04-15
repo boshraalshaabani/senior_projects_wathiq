@@ -10,5 +10,6 @@ namespace eArchiveSystem.Application.DTOs
         public string? TargetUserId { get; set; }
         public bool EnableOcr { get; set; }
         public DocumentPriority? Priority { get; set; }
+        public bool IsSensitive { get; set; }
     }
 }

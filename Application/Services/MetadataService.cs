@@ -16,6 +16,7 @@ namespace eArchiveSystem.Application.Services
         private readonly IAuditService _audit;
         private readonly IIndexingService _indexing;
         private readonly IDocumentAuthorizationService _authorization;
+        private readonly INotificationService _notifications;
 
         public MetadataService(
             IDocumentRepository documents,
@@ -24,7 +25,8 @@ namespace eArchiveSystem.Application.Services
             IUserRepository users,
             IAuditService audit,
             IIndexingService indexing,
-            IDocumentAuthorizationService authorization)
+            IDocumentAuthorizationService authorization,
+            INotificationService notifications)
         {
             _documents = documents;
             _metadata = metadata;
@@ -33,6 +35,7 @@ namespace eArchiveSystem.Application.Services
             _audit = audit;
             _indexing = indexing;
             _authorization = authorization;
+            _notifications = notifications;
         }
 
         public async Task<bool> AddMetadataAsync(string documentId, AddMetadataDto dto, string userId, string role)
@@ -86,6 +89,8 @@ namespace eArchiveSystem.Application.Services
                 "AddMetadata",
                 documentId,
                 $"User {userId} added metadata to document {documentId}");
+
+            await _notifications.NotifyDocumentUpdatedAsync(doc, actor);
 
             return true;
         }
@@ -168,6 +173,8 @@ namespace eArchiveSystem.Application.Services
                     documentId,
                     $"User {userId} added metadata to document {documentId}");
 
+                await _notifications.NotifyDocumentUpdatedAsync(doc, actor);
+
                 return true;
             }
 
@@ -206,6 +213,8 @@ namespace eArchiveSystem.Application.Services
                 "UpdateMetadata",
                 documentId,
                 $"User {userId} updated metadata for document {documentId}");
+
+            await _notifications.NotifyDocumentUpdatedAsync(doc, actor);
 
             return true;
         }

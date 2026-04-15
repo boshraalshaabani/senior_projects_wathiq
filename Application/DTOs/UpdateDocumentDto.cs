@@ -8,5 +8,6 @@ namespace eArchiveSystem.Application.DTOs
         public string? Title { get; set; }
         public IFormFile? File { get; set; }
         public DocumentPriority? Priority { get; set; }
+        public bool? IsSensitive { get; set; }
     }
 }

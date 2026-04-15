@@ -61,13 +61,15 @@ namespace eArchiveSystem.Application.Services
 
         public async Task<(List<SearchDocumentIndex>, long)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
         {
-            var (ids, total) = await _searchRepository.SearchAsync(dto, scope);
+            var (hits, total) = await _searchRepository.SearchAsync(dto, scope);
+            var ids = hits.Select(hit => hit.Id).ToList();
 
             if (ids == null || ids.Count == 0)
                 return (new List<SearchDocumentIndex>(), 0);
 
             var documents = await _documents.GetByIdsAsync(ids);
             var lookup = documents.ToDictionary(d => d.Id);
+            var hitLookup = hits.ToDictionary(hit => hit.Id);
 
             var results = ids
                 .Where(id => lookup.ContainsKey(id))
@@ -77,10 +79,15 @@ namespace eArchiveSystem.Application.Services
                     Id = doc.Id,
                     Title = doc.Title,
                     Content = doc.Content ?? doc.Title,
+                    Description = doc.Metadata?.Description,
+                    Snippet = hitLookup.TryGetValue(doc.Id, out var hit)
+                        ? hit.Snippet ?? BuildFallbackSnippet(doc, dto.Query)
+                        : BuildFallbackSnippet(doc, dto.Query),
                     InstitutionId = doc.InstitutionId ?? string.Empty,
                     DepartmentId = doc.DepartmentId ?? doc.Department ?? string.Empty,
                     Department = doc.Department,
                     UserId = doc.UserId,
+                    IsSensitive = doc.IsSensitive,
                     Category = doc.Metadata?.Category,
                     DocumentType = doc.Metadata?.DocumentType,
                     IssuingEntity = doc.Metadata?.IssuingEntity,
@@ -108,10 +115,12 @@ namespace eArchiveSystem.Application.Services
                 Content = string.IsNullOrWhiteSpace(document.Content)
                     ? document.Title
                     : document.Content,
+                Description = metadata?.Description,
                 InstitutionId = document.InstitutionId ?? owner?.InstitutionId ?? string.Empty,
                 DepartmentId = document.DepartmentId ?? metadata?.DepartmentId ?? document.Department ?? owner?.DepartmentId ?? owner?.Department ?? string.Empty,
                 Department = document.Department,
                 UserId = document.UserId,
+                IsSensitive = document.IsSensitive,
                 Category = metadata?.Category,
                 DocumentType = metadata?.DocumentType,
                 IssuingEntity = metadata?.IssuingEntity,
@@ -122,6 +131,44 @@ namespace eArchiveSystem.Application.Services
                 CreatedAt = document.CreatedAt,
                 UpdatedAt = document.UpdatedAt
             };
+        }
+
+        private static string? BuildFallbackSnippet(Domain.Models.Document document, string? query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return null;
+
+            var source = string.Join(
+                " ",
+                new[]
+                {
+                    document.Title,
+                    document.Metadata?.Description,
+                    document.Content
+                }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            if (string.IsNullOrWhiteSpace(source))
+                return null;
+
+            var index = source.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                return source.Length <= 180
+                    ? source
+                    : $"{source[..180]}...";
+            }
+
+            var start = Math.Max(0, index - 60);
+            var length = Math.Min(source.Length - start, 180);
+            var snippet = source.Substring(start, length).Trim();
+
+            if (start > 0)
+                snippet = $"...{snippet}";
+
+            if (start + length < source.Length)
+                snippet = $"{snippet}...";
+
+            return snippet;
         }
     }
 }

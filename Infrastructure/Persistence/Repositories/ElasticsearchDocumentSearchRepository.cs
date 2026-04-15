@@ -70,7 +70,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             createResponse.EnsureSuccessStatusCode();
         }
 
-        public async Task<(IReadOnlyList<string> Ids, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
+        public async Task<(IReadOnlyList<SearchDocumentHit> Hits, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
         {
             using var client = CreateClient();
             await EnsureIndexExistsAsync(client);
@@ -82,7 +82,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             using var response = await client.SendAsync(request);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
-                return (Array.Empty<string>(), 0);
+                return (Array.Empty<SearchDocumentHit>(), 0);
 
             response.EnsureSuccessStatusCode();
 
@@ -92,7 +92,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             if (!document.RootElement.TryGetProperty("hits", out var hitsNode) ||
                 !hitsNode.TryGetProperty("hits", out var innerHits))
             {
-                return (Array.Empty<string>(), 0);
+                return (Array.Empty<SearchDocumentHit>(), 0);
             }
 
             long total = 0;
@@ -102,14 +102,25 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 total = totalValue.GetInt64();
             }
 
-            var ids = innerHits
+            var hits = innerHits
                 .EnumerateArray()
-                .Select(hit => hit.GetProperty("_id").GetString())
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Cast<string>()
+                .Select(hit =>
+                {
+                    var id = hit.GetProperty("_id").GetString();
+                    if (string.IsNullOrWhiteSpace(id))
+                        return null;
+
+                    return new SearchDocumentHit
+                    {
+                        Id = id,
+                        Snippet = ExtractSnippet(hit)
+                    };
+                })
+                .Where(hit => hit != null)
+                .Cast<SearchDocumentHit>()
                 .ToList();
 
-            return (ids, total);
+            return (hits, total);
         }
 
         private async Task EnsureIndexExistsAsync(HttpClient client)
@@ -293,6 +304,12 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                             analyzer = IndexAnalyzerName,
                             search_analyzer = SearchAnalyzerName
                         },
+                        description = new
+                        {
+                            type = "text",
+                            analyzer = IndexAnalyzerName,
+                            search_analyzer = SearchAnalyzerName
+                        },
                         tags = new
                         {
                             type = "text",
@@ -310,6 +327,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         referenceNumber = new { type = "keyword" },
                         status = new { type = "keyword" },
                         priority = new { type = "keyword" },
+                        isSensitive = new { type = "boolean" },
                         institutionId = new { type = "keyword" },
                         departmentId = new { type = "keyword" },
                         department = new { type = "keyword" },
@@ -339,6 +357,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         fields = new[]
                         {
                             "title^5",
+                            "description^4",
                             "tags^3",
                             "content^2",
                             "issuingEntity^3",
@@ -370,6 +389,19 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                             query = dto.Query,
                             slop = 2,
                             boost = 4
+                        }
+                    }
+                });
+
+                should.Add(new
+                {
+                    match_phrase = new
+                    {
+                        description = new
+                        {
+                            query = dto.Query,
+                            slop = 2,
+                            boost = 5
                         }
                     }
                 });
@@ -463,7 +495,9 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 }
             };
 
-            if (sort is null)
+            var highlight = BuildHighlight(dto);
+
+            if (sort is null && highlight is null)
             {
                 return new
                 {
@@ -474,12 +508,37 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 };
             }
 
+            if (sort is null)
+            {
+                return new
+                {
+                    from,
+                    size = dto.PageSize,
+                    track_total_hits = true,
+                    highlight,
+                    query = queryObject
+                };
+            }
+
+            if (highlight is null)
+            {
+                return new
+                {
+                    from,
+                    size = dto.PageSize,
+                    track_total_hits = true,
+                    sort,
+                    query = queryObject
+                };
+            }
+
             return new
             {
                 from,
                 size = dto.PageSize,
                 track_total_hits = true,
                 sort,
+                highlight,
                 query = queryObject
             };
 
@@ -547,6 +606,67 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         private static string AppendTrailingSlash(string url)
         {
             return url.EndsWith("/", StringComparison.Ordinal) ? url : $"{url}/";
+        }
+
+        private static object? BuildHighlight(SearchDocumentsDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Query))
+                return null;
+
+            return new
+            {
+                pre_tags = new[] { "<em>" },
+                post_tags = new[] { "</em>" },
+                require_field_match = false,
+                fields = new
+                {
+                    title = new
+                    {
+                        number_of_fragments = 1
+                    },
+                    description = new
+                    {
+                        fragment_size = 180,
+                        number_of_fragments = 2
+                    },
+                    content = new
+                    {
+                        fragment_size = 180,
+                        number_of_fragments = 2
+                    },
+                    tags = new
+                    {
+                        number_of_fragments = 1
+                    },
+                    issuingEntity = new
+                    {
+                        number_of_fragments = 1
+                    }
+                }
+            };
+        }
+
+        private static string? ExtractSnippet(JsonElement hit)
+        {
+            if (!hit.TryGetProperty("highlight", out var highlight))
+                return null;
+
+            foreach (var fieldName in new[] { "title", "description", "content", "tags", "issuingEntity" })
+            {
+                if (!highlight.TryGetProperty(fieldName, out var fragments) || fragments.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                var values = fragments
+                    .EnumerateArray()
+                    .Select(fragment => fragment.GetString())
+                    .Where(fragment => !string.IsNullOrWhiteSpace(fragment))
+                    .ToList();
+
+                if (values.Count > 0)
+                    return string.Join(" ... ", values);
+            }
+
+            return null;
         }
     }
 }

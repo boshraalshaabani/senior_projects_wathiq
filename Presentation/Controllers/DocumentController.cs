@@ -55,6 +55,7 @@ namespace eArchiveSystem.Presentation.Controllers
                     fileName = result.Document.FileName,
                     size = result.Document.Size,
                     priority = result.Document.Priority,
+                    isSensitive = result.Document.IsSensitive,
                     status = result.Document.Status
                 }
             });
@@ -186,6 +187,7 @@ namespace eArchiveSystem.Presentation.Controllers
                     fileName = result.Document.FileName,
                     size = result.Document.Size,
                     priority = result.Document.Priority,
+                    isSensitive = result.Document.IsSensitive,
                     status = result.Document.Status
                 }
             });

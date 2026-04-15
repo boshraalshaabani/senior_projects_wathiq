@@ -7,10 +7,13 @@ namespace eArchiveSystem.Application.DTOs
         public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Snippet { get; set; }
         public string InstitutionId { get; set; } = string.Empty;
         public string DepartmentId { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
+        public bool IsSensitive { get; set; }
         public string? Category { get; set; }
         public string? DocumentType { get; set; }
         public string? IssuingEntity { get; set; }
