@@ -301,6 +301,15 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         },
                         category = new { type = "keyword" },
                         documentType = new { type = "keyword" },
+                        issuingEntity = new
+                        {
+                            type = "text",
+                            analyzer = IndexAnalyzerName,
+                            search_analyzer = SearchAnalyzerName
+                        },
+                        referenceNumber = new { type = "keyword" },
+                        status = new { type = "keyword" },
+                        priority = new { type = "keyword" },
                         institutionId = new { type = "keyword" },
                         departmentId = new { type = "keyword" },
                         department = new { type = "keyword" },
@@ -331,7 +340,9 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         {
                             "title^5",
                             "tags^3",
-                            "content^2"
+                            "content^2",
+                            "issuingEntity^3",
+                            "referenceNumber^4"
                         },
                         type = "best_fields",
                         fuzziness = "AUTO"
@@ -408,6 +419,11 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             if (dto.Status.HasValue)
             {
                 filter.Add(new { term = new { status = dto.Status.Value.ToString() } });
+            }
+
+            if (dto.Priority.HasValue)
+            {
+                filter.Add(new { term = new { priority = dto.Priority.Value.ToString() } });
             }
 
             var boolQuery = new
@@ -492,6 +508,16 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         new
                         {
                             createdAt = new
+                            {
+                                order = dto.Desc ? "desc" : "asc"
+                            }
+                        }
+                    },
+                    "Priority" => new object[]
+                    {
+                        new
+                        {
+                            priority = new
                             {
                                 order = dto.Desc ? "desc" : "asc"
                             }

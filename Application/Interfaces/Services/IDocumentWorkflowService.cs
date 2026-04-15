@@ -11,5 +11,6 @@ namespace eArchiveSystem.Application.Interfaces.Services
         Task<ServiceResult<WorkflowActionResultDto>> RejectDocumentAsync(string userId, string documentId, ReviewDecisionDto decision);
         Task<ServiceResult<WorkflowActionResultDto>> PublishDocumentAsync(string userId, string documentId);
         Task<ServiceResult<WorkflowActionResultDto>> ArchiveDocumentAsync(string userId, string documentId);
+        Task<ServiceResult<DocumentTransferResultDto>> TransferDocumentAsync(string userId, string documentId, TransferDocumentDto dto);
     }
 }

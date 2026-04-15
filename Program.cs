@@ -8,6 +8,7 @@ using eArchiveSystem.Infrastructure.Security;
 using eArchiveSystem.Presentation.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -56,6 +57,7 @@ builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IMetadataRepository, MetadataRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+builder.Services.AddScoped<IInstitutionSettingsRepository, InstitutionSettingsRepository>();
 
 // ? ????? Repository ???? ???? (???? HttpClient)
 builder.Services.AddScoped<IDocumentSearchRepository, ElasticsearchDocumentSearchRepository>();
@@ -75,17 +77,23 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IInstitutionSettingsService, InstitutionSettingsService>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRuleBasedAnalyzer, RuleBasedAnalyzer>();
 builder.Services.AddScoped<ITextPreprocessorService, TextPreprocessorService>();
+builder.Services.AddScoped<IOcrExtractionAssessmentService, OcrExtractionAssessmentService>();
 builder.Services.AddScoped<IIndexingService, IndexingService>();
 builder.Services.AddScoped<IDocumentAuthorizationService, DocumentAuthorizationService>();
+builder.Services.AddScoped<IDocumentTimelineService, DocumentTimelineService>();
 builder.Services.AddScoped<IPermissionReviewService, PermissionReviewService>();
 builder.Services.AddScoped<IDocumentWorkflowService, DocumentWorkflowService>();
 builder.Services.AddScoped<IAnalyticsScopeService, AnalyticsScopeService>();
+builder.Services.AddSingleton<
+    Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler,
+    AuthorizationAuditResultHandler>();
 
 QuestPDF.Settings.License = LicenseType.Community;
 

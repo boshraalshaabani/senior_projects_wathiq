@@ -182,5 +182,29 @@ namespace eArchiveSystem.Application.Services
                    document.Status == DocumentStatus.Published &&
                    SameInstitution(actor, document);
         }
+
+        public bool CanTransfer(User actor, Document document, Department targetDepartment)
+        {
+            if (!string.Equals(document.InstitutionId, targetDepartment.InstitutionId, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (ApplicationRoles.IsSystemAdmin(actor.Role))
+                return true;
+
+            if (ApplicationRoles.IsInstitutionAdmin(actor.Role))
+            {
+                return SameInstitution(actor, document) &&
+                       string.Equals(actor.InstitutionId, targetDepartment.InstitutionId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (ApplicationRoles.IsManager(actor.Role))
+            {
+                return SameInstitution(actor, document) &&
+                       SameDepartment(actor, document) &&
+                       string.Equals(actor.InstitutionId, targetDepartment.InstitutionId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
     }
 }

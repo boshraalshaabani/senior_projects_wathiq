@@ -43,6 +43,7 @@ namespace eArchiveSystem.Application.Services
                 Category = dto.Category,
                 Department = dto.Department,
                 DepartmentId = string.IsNullOrWhiteSpace(dto.DepartmentId) ? dto.Department : dto.DepartmentId,
+                Priority = dto.Priority,
                 FromDate = dto.FromDate,
                 ToDate = dto.ToDate,
                 SortBy = dto.SortBy,

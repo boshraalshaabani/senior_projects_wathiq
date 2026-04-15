@@ -9,11 +9,11 @@ namespace eArchiveSystem.Controllers
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
-        private readonly IUserService _userService;
+        private readonly IUserService _userService; 
 
         public AuthController(IUserService userService)
         { 
-            _userService = userService;
+            _userService = userService; 
         }
 
         // LOGIN

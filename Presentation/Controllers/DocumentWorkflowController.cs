@@ -105,5 +105,20 @@ namespace eArchiveSystem.Presentation.Controllers
 
             return Ok(result.Data);
         }
+
+        [HttpPost("transfer")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
+        public async Task<IActionResult> Transfer(string documentId, [FromBody] TransferDocumentDto dto)
+        {
+            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var result = await _workflowService.TransferDocumentAsync(userId, documentId, dto);
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            return Ok(result.Data);
+        }
     }
 }

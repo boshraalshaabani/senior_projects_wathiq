@@ -97,6 +97,7 @@ namespace eArchiveSystem.Application.Services
                 InstitutionId = owner.InstitutionId,
                 DepartmentId = owner.DepartmentId ?? owner.Department,
                 Department = owner.Department ?? owner.DepartmentId,
+                Priority = dto.Priority ?? DocumentPriority.Normal,
                 Status = DocumentStatus.Processing,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -176,6 +177,8 @@ namespace eArchiveSystem.Application.Services
                 InstitutionId = doc.InstitutionId,
                 DepartmentId = doc.DepartmentId,
                 Department = doc.Department,
+                Priority = doc.Priority,
+                Status = doc.Status,
                 OwnerName = owner?.Name,
                 CreatedAt = doc.CreatedAt,
                 Metadata = doc.Metadata,
@@ -233,6 +236,9 @@ namespace eArchiveSystem.Application.Services
 
             if (!string.IsNullOrWhiteSpace(dto.Title))
                 doc.Title = dto.Title;
+
+            if (dto.Priority.HasValue)
+                doc.Priority = dto.Priority.Value;
 
             var fileWasReplaced = false;
 

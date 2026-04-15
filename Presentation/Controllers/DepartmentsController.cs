@@ -36,6 +36,16 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
+        [Authorize]
+        [HttpGet("tree")]
+        public async Task<IActionResult> GetDepartmentTree([FromQuery] string? institutionId)
+        {
+            var requesterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var requesterRole = User.FindFirst(ClaimTypes.Role)?.Value!;
+            var result = await _departmentService.GetDepartmentTreeAsync(requesterId, requesterRole, institutionId);
+            return Ok(result);
+        }
+
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPut("{departmentId}")]
         public async Task<IActionResult> UpdateDepartment(string departmentId, [FromBody] UpdateDepartmentDto dto)

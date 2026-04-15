@@ -11,15 +11,18 @@ namespace eArchiveSystem.Presentation.Controllers
     public class DocumentController : ControllerBase
     {
         private readonly IDocumentService _documentService;
+        private readonly IDocumentTimelineService _documentTimelineService;
         private readonly IMetadataService _metadataService;
         private readonly ISearchService _searchService;
 
         public DocumentController(
             IDocumentService documentService,
+            IDocumentTimelineService documentTimelineService,
             IMetadataService metadataService,
             ISearchService searchService)
         {
             _documentService = documentService;
+            _documentTimelineService = documentTimelineService;
             _metadataService = metadataService;
             _searchService = searchService;
         }
@@ -50,7 +53,9 @@ namespace eArchiveSystem.Presentation.Controllers
                     id = result.Document.Id,
                     title = result.Document.Title,
                     fileName = result.Document.FileName,
-                    size = result.Document.Size
+                    size = result.Document.Size,
+                    priority = result.Document.Priority,
+                    status = result.Document.Status
                 }
             });
         }
@@ -117,6 +122,15 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(doc);
         }
 
+        [HttpGet("{id}/timeline")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
+        public async Task<IActionResult> GetTimeline(string id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var timeline = await _documentTimelineService.GetTimelineAsync(id, userId);
+            return Ok(timeline);
+        }
+
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpGet("{id}/download")]
         public async Task<IActionResult> Download(string id)
@@ -170,7 +184,9 @@ namespace eArchiveSystem.Presentation.Controllers
                     id = result.Document.Id,
                     title = result.Document.Title,
                     fileName = result.Document.FileName,
-                    size = result.Document.Size
+                    size = result.Document.Size,
+                    priority = result.Document.Priority,
+                    status = result.Document.Status
                 }
             });
         }

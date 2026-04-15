@@ -156,6 +156,23 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 .Set("Metadata.Category", metadata.Category)
                 .Set("Metadata.DocumentType", metadata.DocumentType)
                 .Set("Metadata.Tags", metadata.Tags)
+                .Set("Metadata.IssuingEntity", metadata.IssuingEntity)
+                .Set("Metadata.ReferenceNumber", metadata.ReferenceNumber)
+                .Set("Metadata.DocumentDate", metadata.DocumentDate)
+                .Set("Metadata.Insights", metadata.Insights)
+                .Set("Metadata.HasSignature", metadata.HasSignature)
+                .Set("Metadata.Signatures", metadata.Signatures)
+                .Set("Metadata.Headers", metadata.Headers)
+                .Set("Metadata.Footers", metadata.Footers)
+                .Set("Metadata.Stamps", metadata.Stamps)
+                .Set("Metadata.RawExtractionJson", metadata.RawExtractionJson)
+                .Set("Metadata.StructuredDataProvided", metadata.StructuredDataProvided)
+                .Set("Metadata.CoreFieldsComplete", metadata.CoreFieldsComplete)
+                .Set("Metadata.AdvancedMetadataComplete", metadata.AdvancedMetadataComplete)
+                .Set("Metadata.LayoutAnalysisAvailable", metadata.LayoutAnalysisAvailable)
+                .Set("Metadata.RequiresReview", metadata.RequiresReview)
+                .Set("Metadata.ExtractionStatus", metadata.ExtractionStatus)
+                .Set("Metadata.MissingFields", metadata.MissingFields)
                 .Set("Metadata.Department", metadata.Department)
                 .Set("Metadata.DepartmentId", metadata.DepartmentId)
                 .Set("Metadata.ExpirationDate", metadata.ExpirationDate)
@@ -223,6 +240,22 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                     )
                 );
 
+            if (dto.Status.HasValue)
+                filters.Add(
+                    Builders<Document>.Filter.Eq(
+                        d => d.Status,
+                        dto.Status.Value
+                    )
+                );
+
+            if (dto.Priority.HasValue)
+                filters.Add(
+                    Builders<Document>.Filter.Eq(
+                        d => d.Priority,
+                        dto.Priority.Value
+                    )
+                );
+
             if (dto.FromDate != null)
                 filters.Add(
                     Builders<Document>.Filter.Gte(d => d.CreatedAt, dto.FromDate)
@@ -246,6 +279,10 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 "CreatedAt" => dto.Desc
                     ? Builders<Document>.Sort.Descending(d => d.CreatedAt)
                     : Builders<Document>.Sort.Ascending(d => d.CreatedAt),
+
+                "Priority" => dto.Desc
+                    ? Builders<Document>.Sort.Descending(d => d.Priority)
+                    : Builders<Document>.Sort.Ascending(d => d.Priority),
 
                 _ => Builders<Document>.Sort.Descending(d => d.CreatedAt)
             };

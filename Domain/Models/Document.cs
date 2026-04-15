@@ -48,6 +48,10 @@ namespace eArchiveSystem.Domain.Models
             // Department the document belongs to
             public string? Department { get; set; }
 
+            // Document priority
+            [BsonElement("priority")]
+            public DocumentPriority Priority { get; set; } = DocumentPriority.Normal;
+
             // Document workflow status
             [BsonElement("status")]
             public DocumentStatus Status { get; set; } = DocumentStatus.Draft;

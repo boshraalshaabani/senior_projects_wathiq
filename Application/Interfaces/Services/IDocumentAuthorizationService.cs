@@ -18,5 +18,6 @@ namespace eArchiveSystem.Application.Interfaces.Services
         bool CanReject(User actor, Document document);
         bool CanPublish(User actor, Document document);
         bool CanArchive(User actor, Document document);
+        bool CanTransfer(User actor, Document document, Department targetDepartment);
     }
 }

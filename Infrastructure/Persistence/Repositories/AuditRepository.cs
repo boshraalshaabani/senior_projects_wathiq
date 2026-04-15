@@ -18,6 +18,14 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             await _collection.InsertOneAsync(log);
         }
 
+        public async Task<List<AuditLog>> GetByDocumentIdAsync(string documentId)
+        {
+            return await _collection
+                .Find(log => log.DocumentId == documentId)
+                .SortBy(log => log.Timestamp)
+                .ToListAsync();
+        }
+
         // ----------------------------------------------
         // FILTERED + PAGINATED AUDIT LOGS
         // ----------------------------------------------

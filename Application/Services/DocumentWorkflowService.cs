@@ -11,6 +11,8 @@ namespace eArchiveSystem.Application.Services
     {
         private readonly IUserRepository _users;
         private readonly IDocumentRepository _documents;
+        private readonly IDepartmentRepository _departments;
+        private readonly IMetadataRepository _metadata;
         private readonly IDocumentAuthorizationService _authorization;
         private readonly IAuditService _audit;
         private readonly IIndexingService _indexing;
@@ -18,12 +20,16 @@ namespace eArchiveSystem.Application.Services
         public DocumentWorkflowService(
             IUserRepository users,
             IDocumentRepository documents,
+            IDepartmentRepository departments,
+            IMetadataRepository metadata,
             IDocumentAuthorizationService authorization,
             IAuditService audit,
             IIndexingService indexing)
         {
             _users = users;
             _documents = documents;
+            _departments = departments;
+            _metadata = metadata;
             _authorization = authorization;
             _audit = audit;
             _indexing = indexing;
@@ -267,6 +273,76 @@ namespace eArchiveSystem.Application.Services
             };
 
             return ServiceResult<WorkflowActionResultDto>.Ok(resultDto);
+        }
+
+        public async Task<ServiceResult<DocumentTransferResultDto>> TransferDocumentAsync(string userId, string documentId, TransferDocumentDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.TargetDepartmentId))
+                return ServiceResult<DocumentTransferResultDto>.Fail("Target department is required");
+
+            if (string.IsNullOrWhiteSpace(dto.Justification))
+                return ServiceResult<DocumentTransferResultDto>.Fail("Transfer justification is required");
+
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            var document = await _documents.GetByIdAsync(documentId)
+                ?? throw new NotFoundException("Document not found");
+
+            if (document.Status == DocumentStatus.Archived)
+                return ServiceResult<DocumentTransferResultDto>.Fail("Archived documents cannot be transferred");
+
+            var targetDepartment = await _departments.GetByIdAsync(dto.TargetDepartmentId.Trim())
+                ?? throw new NotFoundException("Target department not found");
+
+            if (!_authorization.CanTransfer(actor, document, targetDepartment))
+                return ServiceResult<DocumentTransferResultDto>.Fail("Unauthorized to transfer this document");
+
+            if (string.Equals(document.DepartmentId, targetDepartment.Id, StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<DocumentTransferResultDto>.Fail("Document is already assigned to this department");
+
+            var previousDepartmentId = document.DepartmentId;
+            var previousDepartmentName = document.Department;
+            var transferredAt = DateTime.UtcNow;
+
+            document.DepartmentId = targetDepartment.Id;
+            document.Department = targetDepartment.Name;
+            document.UpdatedAt = transferredAt;
+
+            await _documents.UpdateAsync(document.Id, document);
+
+            var metadata = await _metadata.GetByDocumentIdAsync(documentId);
+            if (metadata != null)
+            {
+                metadata.DepartmentId = targetDepartment.Id;
+                metadata.Department = targetDepartment.Name;
+                metadata.UpdatedAt = transferredAt;
+                await _metadata.UpsertAsync(metadata);
+                await _documents.UpdateMetadataFieldsAsync(document.Id, metadata);
+            }
+
+            await _audit.LogAsync(
+                userId,
+                actor.Role,
+                "TransferDocument",
+                documentId,
+                $"Transferred document from department '{previousDepartmentName ?? previousDepartmentId ?? "Unknown"}' to '{targetDepartment.Name}'. Justification: {dto.Justification.Trim()}");
+
+            await _indexing.SyncDocumentAsync(documentId);
+
+            var resultDto = new DocumentTransferResultDto
+            {
+                DocumentId = document.Id,
+                Status = document.Status,
+                PreviousDepartmentId = previousDepartmentId,
+                PreviousDepartmentName = previousDepartmentName,
+                TargetDepartmentId = targetDepartment.Id,
+                TargetDepartmentName = targetDepartment.Name,
+                Justification = dto.Justification.Trim(),
+                TransferredAt = transferredAt
+            };
+
+            return ServiceResult<DocumentTransferResultDto>.Ok(resultDto);
         }
     }
 }

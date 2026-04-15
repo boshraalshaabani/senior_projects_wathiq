@@ -83,6 +83,10 @@ namespace eArchiveSystem.Application.Services
                     UserId = doc.UserId,
                     Category = doc.Metadata?.Category,
                     DocumentType = doc.Metadata?.DocumentType,
+                    IssuingEntity = doc.Metadata?.IssuingEntity,
+                    ReferenceNumber = doc.Metadata?.ReferenceNumber,
+                    Status = doc.Status,
+                    Priority = doc.Priority,
                     Tags = doc.Metadata?.Tags ?? new List<string>(),
                     CreatedAt = doc.CreatedAt,
                     UpdatedAt = doc.UpdatedAt
@@ -110,7 +114,10 @@ namespace eArchiveSystem.Application.Services
                 UserId = document.UserId,
                 Category = metadata?.Category,
                 DocumentType = metadata?.DocumentType,
+                IssuingEntity = metadata?.IssuingEntity,
+                ReferenceNumber = metadata?.ReferenceNumber,
                 Status = document.Status,
+                Priority = document.Priority,
                 Tags = metadata?.Tags ?? new List<string>(),
                 CreatedAt = document.CreatedAt,
                 UpdatedAt = document.UpdatedAt

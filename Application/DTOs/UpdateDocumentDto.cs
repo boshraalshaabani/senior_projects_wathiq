@@ -1,8 +1,12 @@
-﻿namespace eArchiveSystem.Application.DTOs
+using eArchiveSystem.Domain.Models;
+using Microsoft.AspNetCore.Http;
+
+namespace eArchiveSystem.Application.DTOs
 {
     public class UpdateDocumentDto
     {
         public string? Title { get; set; }
-        public IFormFile? File { get; set; }   // الملف الجديد (اختياري)
+        public IFormFile? File { get; set; }
+        public DocumentPriority? Priority { get; set; }
     }
 }

@@ -9,6 +9,7 @@ namespace eArchiveSystem.Application.DTOs
         public string? Department { get; set; }
         public string? DepartmentId { get; set; }
         public DocumentStatus? Status { get; set; } // فلتر على حالة الوثيقة
+        public DocumentPriority? Priority { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; } 
         public string? SortBy { get; set; }     // Title, CreatedAt, etc.

@@ -15,6 +15,9 @@ namespace eArchiveSystem.Domain.Models
         [BsonElement("institutionId")]
         public string InstitutionId { get; set; } = string.Empty;
 
+        [BsonElement("parentDepartmentId")]
+        public string? ParentDepartmentId { get; set; }
+
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
