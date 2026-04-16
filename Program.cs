@@ -30,7 +30,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 var dataProtectionBuilder = builder.Services
-    .AddDataProtection()
+    .AddDataProtection() 
     .SetApplicationName("eArchiveSystem");
 
 if (builder.Environment.IsDevelopment())
