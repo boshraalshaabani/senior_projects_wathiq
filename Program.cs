@@ -50,7 +50,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = long.MaxValue;
+    options.MultipartBodyLengthLimit = long.MaxValue; 
     options.ValueLengthLimit = int.MaxValue;
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
