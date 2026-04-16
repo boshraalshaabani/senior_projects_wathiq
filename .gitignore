@@ -28,3 +28,6 @@ appsettings.Development.local.json
 
 # Uploads (optional if large)
 uploads/
+
+
+allfiles.txt 
