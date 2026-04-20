@@ -23,8 +23,7 @@ namespace eArchiveSystem.Application.Services
         private static readonly string[] PendingItems =
         {
             "Reports and dashboard still need endpoint-level verification after the new scoping changes.",
-            "Audit visibility still needs real-world verification with institution and department test data.",
-            "Legacy system admin data may still need migration/cleanup."
+            "Audit visibility still needs real-world verification with institution and department test data."
         };
 
         private readonly IUserRepository _users;

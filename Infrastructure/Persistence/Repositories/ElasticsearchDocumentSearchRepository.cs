@@ -13,6 +13,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         private const string IndexAnalyzerName = "document_index_analyzer";
         private const string SearchAnalyzerName = "document_search_analyzer";
+        private const string SimpleAnalyzerName = "document_simple_analyzer";
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ElasticsearchSettings _settings;
@@ -275,6 +276,18 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                                     "arabic_stemmer",
                                     "english_stemmer"
                                 }
+                            },
+                            document_simple_analyzer = new
+                            {
+                                type = "custom",
+                                tokenizer = "standard",
+                                char_filter = new[] { "arabic_char_mapping" },
+                                filter = new[]
+                                {
+                                    "lowercase",
+                                    "decimal_digit",
+                                    "arabic_normalization"
+                                }
                             }
                         }
                     }
@@ -295,6 +308,12 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                                 {
                                     type = "keyword",
                                     ignore_above = 256
+                                },
+                                simple = new
+                                {
+                                    type = "text",
+                                    analyzer = SimpleAnalyzerName,
+                                    search_analyzer = SimpleAnalyzerName
                                 }
                             }
                         },
@@ -302,19 +321,46 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         {
                             type = "text",
                             analyzer = IndexAnalyzerName,
-                            search_analyzer = SearchAnalyzerName
+                            search_analyzer = SearchAnalyzerName,
+                            fields = new
+                            {
+                                simple = new
+                                {
+                                    type = "text",
+                                    analyzer = SimpleAnalyzerName,
+                                    search_analyzer = SimpleAnalyzerName
+                                }
+                            }
                         },
                         description = new
                         {
                             type = "text",
                             analyzer = IndexAnalyzerName,
-                            search_analyzer = SearchAnalyzerName
+                            search_analyzer = SearchAnalyzerName,
+                            fields = new
+                            {
+                                simple = new
+                                {
+                                    type = "text",
+                                    analyzer = SimpleAnalyzerName,
+                                    search_analyzer = SimpleAnalyzerName
+                                }
+                            }
                         },
                         tags = new
                         {
                             type = "text",
                             analyzer = IndexAnalyzerName,
-                            search_analyzer = SearchAnalyzerName
+                            search_analyzer = SearchAnalyzerName,
+                            fields = new
+                            {
+                                simple = new
+                                {
+                                    type = "text",
+                                    analyzer = SimpleAnalyzerName,
+                                    search_analyzer = SimpleAnalyzerName
+                                }
+                            }
                         },
                         category = new { type = "keyword" },
                         documentType = new { type = "keyword" },
@@ -322,7 +368,16 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         {
                             type = "text",
                             analyzer = IndexAnalyzerName,
-                            search_analyzer = SearchAnalyzerName
+                            search_analyzer = SearchAnalyzerName,
+                            fields = new
+                            {
+                                simple = new
+                                {
+                                    type = "text",
+                                    analyzer = SimpleAnalyzerName,
+                                    search_analyzer = SimpleAnalyzerName
+                                }
+                            }
                         },
                         referenceNumber = new { type = "keyword" },
                         status = new { type = "keyword" },
@@ -357,10 +412,15 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         fields = new[]
                         {
                             "title^5",
+                            "title.simple^7",
                             "description^4",
+                            "description.simple^5",
                             "tags^3",
+                            "tags.simple^4",
                             "content^2",
+                            "content.simple^3",
                             "issuingEntity^3",
+                            "issuingEntity.simple^4",
                             "referenceNumber^4"
                         },
                         type = "best_fields",
@@ -376,6 +436,18 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                         {
                             query = dto.Query,
                             boost = 8
+                        }
+                    }
+                });
+
+                should.Add(new
+                {
+                    match_phrase = new Dictionary<string, object>
+                    {
+                        ["title.simple"] = new
+                        {
+                            query = dto.Query,
+                            boost = 10
                         }
                     }
                 });
@@ -402,6 +474,19 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                             query = dto.Query,
                             slop = 2,
                             boost = 5
+                        }
+                    }
+                });
+
+                should.Add(new
+                {
+                    match_phrase = new Dictionary<string, object>
+                    {
+                        ["description.simple"] = new
+                        {
+                            query = dto.Query,
+                            slop = 2,
+                            boost = 6
                         }
                     }
                 });
@@ -618,27 +703,49 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
                 pre_tags = new[] { "<em>" },
                 post_tags = new[] { "</em>" },
                 require_field_match = false,
-                fields = new
+                fields = new Dictionary<string, object>
                 {
-                    title = new
+                    ["title"] = new
                     {
                         number_of_fragments = 1
                     },
-                    description = new
+                    ["title.simple"] = new
+                    {
+                        number_of_fragments = 1
+                    },
+                    ["description"] = new
                     {
                         fragment_size = 180,
                         number_of_fragments = 2
                     },
-                    content = new
+                    ["description.simple"] = new
                     {
                         fragment_size = 180,
                         number_of_fragments = 2
                     },
-                    tags = new
+                    ["content"] = new
+                    {
+                        fragment_size = 180,
+                        number_of_fragments = 2
+                    },
+                    ["content.simple"] = new
+                    {
+                        fragment_size = 180,
+                        number_of_fragments = 2
+                    },
+                    ["tags"] = new
                     {
                         number_of_fragments = 1
                     },
-                    issuingEntity = new
+                    ["tags.simple"] = new
+                    {
+                        number_of_fragments = 1
+                    },
+                    ["issuingEntity"] = new
+                    {
+                        number_of_fragments = 1
+                    },
+                    ["issuingEntity.simple"] = new
                     {
                         number_of_fragments = 1
                     }
@@ -651,7 +758,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             if (!hit.TryGetProperty("highlight", out var highlight))
                 return null;
 
-            foreach (var fieldName in new[] { "title", "description", "content", "tags", "issuingEntity" })
+            foreach (var fieldName in new[] { "title", "title.simple", "description", "description.simple", "content", "content.simple", "tags", "tags.simple", "issuingEntity", "issuingEntity.simple" })
             {
                 if (!highlight.TryGetProperty(fieldName, out var fragments) || fragments.ValueKind != JsonValueKind.Array)
                     continue;

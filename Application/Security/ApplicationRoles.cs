@@ -2,14 +2,13 @@ namespace eArchiveSystem.Application.Security
 {
     public static class ApplicationRoles
     {
-        public const string LegacySystemAdmin = "Admin";
         public const string SystemAdmin = "SystemAdmin";
         public const string InstitutionAdmin = "InstitutionAdmin";
         public const string Manager = "Manager";
         public const string Employee = "Employee";
 
         public static bool IsSystemAdmin(string? role) =>
-            role == LegacySystemAdmin || role == SystemAdmin;
+            role == SystemAdmin;
 
         public static bool IsInstitutionAdmin(string? role) =>
             role == InstitutionAdmin;

@@ -158,7 +158,6 @@ namespace eArchiveSystem.Application.Services
             // 3) Reset counters
             user.FailedLoginAttempts = 0;
             user.LockoutUntil = null;
-
             //  TWO-FACTOR AUTH
        
             if (user.TwoFactorEnabled)
@@ -559,9 +558,6 @@ namespace eArchiveSystem.Application.Services
             var systemAdminExists = await _repo.GetByRoleAsync(ApplicationRoles.SystemAdmin);
             if (systemAdminExists.Any()) return;
 
-            var legacyAdminExists = await _repo.GetByRoleAsync(ApplicationRoles.LegacySystemAdmin);
-            if (legacyAdminExists.Any()) return;
-
             var name = _config["BootstrapAdmin:Name"];
             var email = _config["BootstrapAdmin:Email"];
             var password = _config["BootstrapAdmin:Password"];
@@ -599,7 +595,6 @@ namespace eArchiveSystem.Application.Services
             // Clear code after success
             user.TwoFactorCode = null;
             user.TwoFactorExpiry = null;
-
             string token = _token.GenerateJwtToken(user);
 
             await _repo.UpdateAsync(user.Id, user);

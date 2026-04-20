@@ -12,7 +12,7 @@ namespace eArchiveSystem.Presentation.Middleware
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
         private readonly RequestDelegate _next;
-        private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger;
+        private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger; 
 
         public GlobalExceptionHandlingMiddleware(
             RequestDelegate next,

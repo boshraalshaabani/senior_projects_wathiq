@@ -1,4 +1,3 @@
-using DocumentFormat.OpenXml.Office2010.Word;
 using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Exceptions;
 using eArchiveSystem.Application.Interfaces.Persistence;
@@ -88,6 +87,8 @@ namespace eArchiveSystem.Application.Services
 
             var savedPath = await _storage.SaveFileAsync(dto.File, "uploads");
 
+            var shouldTriggerOcr = dto.EnableOcr;
+
             var doc = new Document
             {
                 Title = string.IsNullOrWhiteSpace(dto.Title)
@@ -105,7 +106,7 @@ namespace eArchiveSystem.Application.Services
                 Department = owner.Department ?? owner.DepartmentId,
                 Priority = dto.Priority ?? DocumentPriority.Normal,
                 IsSensitive = dto.IsSensitive,
-                Status = DocumentStatus.Processing,
+                Status = shouldTriggerOcr ? DocumentStatus.Processing : DocumentStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -117,7 +118,14 @@ namespace eArchiveSystem.Application.Services
             if (!File.Exists(fullSavedPath))
                 throw new NotFoundException("Document file not found");
 
-            await TriggerOcrAsync(doc.Id, fullSavedPath);
+            if (shouldTriggerOcr)
+            {
+                await TriggerOcrAsync(doc.Id, fullSavedPath);
+            }
+            else
+            {
+                await _indexing.SyncDocumentAsync(doc.Id);
+            }
 
             await _audit.LogAsync(
                 actor.Id,
