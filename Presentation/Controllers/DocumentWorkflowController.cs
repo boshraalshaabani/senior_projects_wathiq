@@ -10,7 +10,7 @@ namespace eArchiveSystem.Presentation.Controllers
     [Authorize]
     public class DocumentWorkflowController : ControllerBase 
     {
-        private readonly IDocumentWorkflowService _workflowService;
+        private readonly IDocumentWorkflowService _workflowService; 
 
         public DocumentWorkflowController(IDocumentWorkflowService workflowService)
         {

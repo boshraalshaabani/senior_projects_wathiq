@@ -31,19 +31,38 @@ namespace eArchiveSystem.Application.Services
 
         public bool CanEdit(User actor, Document document)
         {
-            // Employee: only Draft and Rejected
-            if (ApplicationRoles.IsEmployee(actor.Role))
-                return (document.Status == DocumentStatus.Draft || document.Status == DocumentStatus.Rejected) && document.UserId == actor.Id;
+            var canEditMetadataStatus =
+                document.Status == DocumentStatus.Draft ||
+                document.Status == DocumentStatus.Rejected ||
+                document.Status == DocumentStatus.Processing;
 
-            // Manager: no general edit on Submitted (use CanReviewEdit if needed)
+            if (ApplicationRoles.IsEmployee(actor.Role))
+                return canEditMetadataStatus && document.UserId == actor.Id;
+
+            if (ApplicationRoles.IsManager(actor.Role))
+                return canEditMetadataStatus && SameInstitution(actor, document) && SameDepartment(actor, document);
+
             return false;
         }
 
         public bool CanDelete(User actor, Document document)
         {
-            // Only Draft and Rejected can be deleted
-            if (document.Status != DocumentStatus.Draft && document.Status != DocumentStatus.Rejected)
+            // Draft, Rejected, and stuck OCR Processing documents can be deleted.
+            if (document.Status != DocumentStatus.Draft &&
+                document.Status != DocumentStatus.Rejected &&
+                document.Status != DocumentStatus.Processing)
+            {
                 return false;
+            }
+
+            if (document.Status == DocumentStatus.Processing)
+            {
+                if (ApplicationRoles.IsSystemAdmin(actor.Role))
+                    return true;
+
+                if (ApplicationRoles.IsInstitutionAdmin(actor.Role))
+                    return SameInstitution(actor, document);
+            }
 
             if (ApplicationRoles.IsManager(actor.Role))
                 return SameInstitution(actor, document) && SameDepartment(actor, document);
@@ -136,8 +155,9 @@ namespace eArchiveSystem.Application.Services
         // Workflow permissions
         public bool CanSubmit(User actor, Document document)
         {
-            // Only owner can submit their draft
-            return document.UserId == actor.Id && document.Status == DocumentStatus.Draft;
+            // Only the owner can submit a draft or resubmit a rejected document.
+            return document.UserId == actor.Id &&
+                   (document.Status == DocumentStatus.Draft || document.Status == DocumentStatus.Rejected);
         }
 
         public bool CanApprove(User actor, Document document)

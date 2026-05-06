@@ -15,6 +15,15 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
         Task<List<Document>> GetByIdsAsync(IReadOnlyCollection<string> ids);
         Task AttachMetadataAsync(string documentId);
         Task UpdateMetadataFieldsAsync(string documentId, Metadata metadata);
-        Task UpdateContentAsync(string documentId, string content, string? department, string? departmentId);
+        Task UpdateContentAsync(
+            string documentId,
+            string content,
+            string rawOcrText,
+            string normalizedOcrText,
+            string? ocrProvider,
+            string? ocrLanguage,
+            int? ocrPages,
+            string? department,
+            string? departmentId);
     }
 }

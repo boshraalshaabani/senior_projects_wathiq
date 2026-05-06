@@ -82,10 +82,10 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IInstitutionSettingsRepository, InstitutionSettingsRepository>();
 
-// ? ????? Repository ???? ???? (???? HttpClient)
+// Register the search repository used by the indexing layer.
 builder.Services.AddScoped<IDocumentSearchRepository, ElasticsearchDocumentSearchRepository>();
 
-// ? HttpClient ????? (????)
+// Allow the Elasticsearch client to work with the local development certificate.
 builder.Services.AddHttpClient("ElasticClient")
     .ConfigurePrimaryHttpMessageHandler(() =>
         new HttpClientHandler
@@ -99,6 +99,7 @@ builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IMetadataService, MetadataService>();
+builder.Services.AddScoped<IMetadataPreviewService, MetadataPreviewService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IInstitutionSettingsService, InstitutionSettingsService>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();

@@ -9,6 +9,7 @@ namespace eArchiveSystem.Application.Interfaces.Services
         Task<Document> GetByIdAsync(string id);
         Task DeleteDocumentAsync(string id, string userId, string role);
         Task<DocumentViewDto> ViewDocumentAsync(string documentId, string userId, string role);
+        Task<DocumentOcrTextDto> GetExtractedTextAsync(string documentId, string userId, string role);
         Task<(Stream FileStream, string FileName, string ContentType)> DownloadDocumentAsync(
             string documentId,
             string userId,

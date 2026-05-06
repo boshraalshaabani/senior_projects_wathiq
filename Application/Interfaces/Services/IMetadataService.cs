@@ -8,7 +8,7 @@ namespace eArchiveSystem.Application.Interfaces.Services
     public interface IMetadataService
     {
 
-        // إضافة Metadata جديدة لوثيقة
+        // Adds metadata to a document.
         Task<bool> AddMetadataAsync(
             string documentId,
             AddMetadataDto dto,
@@ -17,7 +17,7 @@ namespace eArchiveSystem.Application.Interfaces.Services
             
         );
 
-        // عرض Metadata الخاصة بوثيقة
+        // Returns metadata for a document.
         Task<Metadata?> ViewMetadataAsync(
             string documentId,
             string userId,
@@ -25,7 +25,7 @@ namespace eArchiveSystem.Application.Interfaces.Services
             
         );
 
-        // تعديل Metadata < موجودة < أو إنشاؤها إن لم تكن موجودة
+        // Updates existing metadata or creates it when missing.
         Task<bool> UpdateMetadataAsync(
             string documentId,
             AddMetadataDto dto,

@@ -6,6 +6,7 @@ using eArchiveSystem.Domain.Models;
 
 namespace eArchiveSystem.Application.Services
 {
+    // Summarizes permission coverage and sample access checks.
     public class PermissionReviewService : IPermissionReviewService
     {
         private static readonly string[] ImplementedItems =
@@ -87,7 +88,7 @@ namespace eArchiveSystem.Application.Services
             return new DocumentPermissionCheckDto
             {
                 DocumentId = document.Id,
-                // إذا لا يمكن العرض، لا نرجع تفاصيل حساسة
+                // Hide sensitive document details when access is denied.
                 OwnerUserId = canView ? document.UserId : null,
                 InstitutionId = canView ? document.InstitutionId : null,
                 DepartmentId = canView ? document.DepartmentId : null,

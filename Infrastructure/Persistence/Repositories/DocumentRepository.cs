@@ -81,12 +81,23 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
         public async Task UpdateContentAsync(
             string documentId,
             string content,
+            string rawOcrText,
+            string normalizedOcrText,
+            string? ocrProvider,
+            string? ocrLanguage,
+            int? ocrPages,
             string? department,
             string? departmentId
         )
         {
             var update = Builders<Document>.Update
                 .Set(d => d.Content, content)
+                .Set(d => d.RawOcrText, rawOcrText)
+                .Set(d => d.NormalizedOcrText, normalizedOcrText)
+                .Set(d => d.OcrProvider, ocrProvider)
+                .Set(d => d.OcrLanguage, ocrLanguage)
+                .Set(d => d.OcrPages, ocrPages)
+                .Set(d => d.OcrUpdatedAt, DateTime.UtcNow)
                 .Set(d => d.Department, department)
                 .Set(d => d.DepartmentId, departmentId)
                 .Set(d => d.UpdatedAt, DateTime.UtcNow);

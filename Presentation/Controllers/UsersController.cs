@@ -8,6 +8,7 @@ namespace eArchiveSystem.Presentation.Controllers
 {
     [ApiController]
     [Route("api/users")]
+    // Manages user administration and self-service account actions.
     public class UsersController : ControllerBase
     {
         private readonly IUserService _service;
@@ -17,7 +18,7 @@ namespace eArchiveSystem.Presentation.Controllers
             _service = service;
         }
 
-        // ADD USER (Admin only)
+        // Creates a user within the allowed admin scope.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPost("add")]
         public async Task<IActionResult> AddUser(AddUserDto dto)
@@ -27,7 +28,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(user);
         }
 
-
+        // Creates the first system admin account.
         [Authorize(Roles = "SystemAdmin")]
         [HttpPost("create-admin")]
         public async Task<IActionResult> CreateAdmin(CreateAdminDto dto)
@@ -46,7 +47,8 @@ namespace eArchiveSystem.Presentation.Controllers
             });
         }
 
-        [Authorize]   // أي مستخدم مسجل دخول يقدر يعدل نفسه
+        // Allows signed-in users to update their own profile.
+        [Authorize]
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
@@ -57,8 +59,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(new { message = result });
         }
 
-        //Update Role (assign-role) 
-
+        // Updates a user's role.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPut("{id}/assign-role")]
         public async Task<IActionResult> AssignRole(string id, AssignRoleDto dto)
@@ -69,7 +70,7 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
 
-        // DELETE USER (Admin only)
+        // Deletes a user within the allowed admin scope.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(string id)
@@ -81,6 +82,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(new { message = result });
         }
 
+        // Updates a user as an administrator.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpPut("edit/{id}")]
         public async Task<IActionResult> EditUser(string id, UpdateUserDto dto)
@@ -89,6 +91,7 @@ namespace eArchiveSystem.Presentation.Controllers
             var result = await _service.EditUser(id, dto, requesterId);
             return Ok(new { message = result });
         }
+        // Returns the visible users for the current admin.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin")]
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] string? role, [FromQuery] string? search)
@@ -99,6 +102,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(users);
         }
 
+        // Changes the current user's password.
         [Authorize]
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
@@ -110,9 +114,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(new { message = result });
         }
 
-        // =========================
-        // Two-Factor Authentication (2FA)
-        // =========================
+        // Returns the current user's 2FA status.
 
         /// <summary>
         /// Get current user's 2FA status.
@@ -127,8 +129,9 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
         /// <summary>
-        /// Enable/disable current user's 2FA.
+        /// Enable or disable the current user's 2FA.
         /// </summary>
+        // Updates the current user's 2FA setting.
         [Authorize]
         [HttpPut("2fa")]
         public async Task<IActionResult> Set2FAStatus([FromBody] TwoFactorToggleDto dto)

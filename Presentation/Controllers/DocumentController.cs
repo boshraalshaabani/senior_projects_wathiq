@@ -13,17 +13,20 @@ namespace eArchiveSystem.Presentation.Controllers
         private readonly IDocumentService _documentService;
         private readonly IDocumentTimelineService _documentTimelineService;
         private readonly IMetadataService _metadataService;
+        private readonly IMetadataPreviewService _metadataPreviewService;
         private readonly ISearchService _searchService;
 
         public DocumentController(
             IDocumentService documentService,
             IDocumentTimelineService documentTimelineService,
             IMetadataService metadataService,
+            IMetadataPreviewService metadataPreviewService,
             ISearchService searchService)
         {
             _documentService = documentService;
             _documentTimelineService = documentTimelineService;
             _metadataService = metadataService;
+            _metadataPreviewService = metadataPreviewService;
             _searchService = searchService;
         }
 
@@ -102,7 +105,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Manager,Employee")]
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpDelete("{documentId}")]
         public async Task<IActionResult> DeleteDocument(string documentId)
         {
@@ -147,6 +150,28 @@ namespace eArchiveSystem.Presentation.Controllers
         }
 
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
+        [HttpGet("{id}/ocr-text")]
+        public async Task<IActionResult> GetOcrText(string id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value!;
+            var result = await _documentService.GetExtractedTextAsync(id, userId, role);
+
+            if (string.IsNullOrWhiteSpace(result.RawText) &&
+                string.IsNullOrWhiteSpace(result.NormalizedText) &&
+                result.Status == Domain.Models.DocumentStatus.Processing)
+            {
+                return Accepted(new
+                {
+                    status = "processing",
+                    message = "OCR is still processing"
+                });
+            }
+
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
         [HttpGet("{id}/metadata")]
         public async Task<IActionResult> ViewMetadata(string id)
         {
@@ -165,6 +190,28 @@ namespace eArchiveSystem.Presentation.Controllers
             }
 
             return Ok(meta);
+        }
+
+        [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager,Employee")]
+        [HttpGet("{id}/metadata-preview")]
+        public async Task<IActionResult> PreviewMetadata(string id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value!;
+
+            var preview = await _metadataPreviewService.GeneratePreviewAsync(id, userId, role);
+
+            if (!preview.HasExtractedText &&
+                preview.Status == Domain.Models.DocumentStatus.Processing)
+            {
+                return Accepted(new
+                {
+                    status = "processing",
+                    message = "OCR is still processing"
+                });
+            }
+
+            return Ok(preview);
         }
 
         [Authorize(Roles = "Manager,Employee")]

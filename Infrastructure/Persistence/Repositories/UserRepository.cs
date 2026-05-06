@@ -5,7 +5,7 @@ using MongoDB.Bson;
 
 namespace eArchiveSystem.Infrastructure.Persistence.Repositories
 {
-
+    // Stores and retrieves user records from MongoDB.
     public class UserRepository : IUserRepository
     {
         private readonly IMongoCollection<User> _users;
@@ -51,7 +51,7 @@ namespace eArchiveSystem.Infrastructure.Persistence.Repositories
             if (ids == null || !ids.Any())
                 return new List<User>();
 
-            // فلترة صارمة: فقط ObjectId صحيحة
+            // Skip invalid ObjectId values before querying MongoDB.
             var validIds = ids
                 .Where(id => ObjectId.TryParse(id, out _))
                 .ToList();

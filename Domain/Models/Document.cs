@@ -17,6 +17,18 @@ namespace eArchiveSystem.Domain.Models
             // OCR extracted text (optional)
             public string? Content { get; set; }
 
+            // OCR raw text returned by the OCR provider
+            public string? RawOcrText { get; set; }
+
+            // OCR normalized text before downstream analysis/search cleaning
+            public string? NormalizedOcrText { get; set; }
+
+            // OCR provider metadata
+            public string? OcrProvider { get; set; }
+            public string? OcrLanguage { get; set; }
+            public int? OcrPages { get; set; }
+            public DateTime? OcrUpdatedAt { get; set; }
+
             // File path on the server
             public string FilePath { get; set; }
 

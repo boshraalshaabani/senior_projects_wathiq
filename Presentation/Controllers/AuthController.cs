@@ -7,6 +7,7 @@ namespace eArchiveSystem.Controllers
 {
     [ApiController]
     [Route("api/auth")]
+    // Handles authentication and password recovery endpoints.
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService; 
@@ -16,13 +17,13 @@ namespace eArchiveSystem.Controllers
             _userService = userService; 
         }
 
-        // LOGIN
+        // Signs in a user and returns a token or a 2FA challenge.
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto) 
         {
             var result = await _userService.Login(dto);
 
-            // الحالة الأولى: نحتاج تأكيد 2FA 
+            // Return the 2FA challenge when a second step is required.
             if (result.Requires2FA)
             {
                 return Ok(new
@@ -32,7 +33,7 @@ namespace eArchiveSystem.Controllers
                 });
             }
 
-            // الحالة الثانية: تسجيل دخول كامل (تم تجاوز 2FA)
+            // Return the signed-in user payload when authentication is complete.
             return Ok(new
             {
                 token = result.Token,
@@ -51,7 +52,7 @@ namespace eArchiveSystem.Controllers
         }
         
 
-        // LOGOUT
+        // Ends the current session on the client side.
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -59,7 +60,7 @@ namespace eArchiveSystem.Controllers
             return Ok(new { message });
         }
 
-        // FORGOT PASSWORD
+        // Starts the password reset flow.
         [HttpPost("password/forgot")]
         public async Task<IActionResult> Forgot(ForgotPasswordDto dto)
         {
@@ -68,7 +69,7 @@ namespace eArchiveSystem.Controllers
         }
 
 
-        // RESET PASSWORD
+        // Completes the password reset flow.
         [HttpPost("password/reset")]
         public async Task<IActionResult> Reset(ResetPasswordDto dto)
         {
@@ -76,6 +77,7 @@ namespace eArchiveSystem.Controllers
             return Ok(result);
         }
 
+        // Verifies the submitted 2FA code.
         [HttpPost("verify-2fa")]
         public async Task<IActionResult> Verify2FA([FromBody] Verify2FADto dto)
         {

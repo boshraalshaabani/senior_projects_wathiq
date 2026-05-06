@@ -43,6 +43,7 @@ namespace eArchiveSystem.Application.Services
             return (current, next) switch
             {
                 (DocumentStatus.Draft, DocumentStatus.Submitted) => true,
+                (DocumentStatus.Rejected, DocumentStatus.Submitted) => true,
                 (DocumentStatus.Submitted, DocumentStatus.UnderReview) => true,
                 (DocumentStatus.UnderReview, DocumentStatus.Approved) => true,
                 (DocumentStatus.UnderReview, DocumentStatus.Rejected) => true,
@@ -66,15 +67,22 @@ namespace eArchiveSystem.Application.Services
             if (!EnsureValidTransition(document.Status, DocumentStatus.Submitted))
                 return ServiceResult<WorkflowActionResultDto>.Fail("Invalid status transition");
 
+            var metadata = document.Metadata ?? await _metadata.GetByDocumentIdAsync(documentId);
+
             // Prevent submit if metadata is missing
-            if (document.Metadata == null)
+            if (metadata == null)
                 return ServiceResult<WorkflowActionResultDto>.Fail("Document metadata is required before submission");
 
             // Prevent submit if OCR is not completed (check if Content exists)
-            if (string.IsNullOrWhiteSpace(document.Content))
+            if (string.IsNullOrWhiteSpace(document.Content) &&
+                string.IsNullOrWhiteSpace(document.NormalizedOcrText) &&
+                string.IsNullOrWhiteSpace(document.RawOcrText))
+            {
                 return ServiceResult<WorkflowActionResultDto>.Fail("OCR processing must be completed before submission");
+            }
 
             var previousStatus = document.Status;
+            document.Metadata = metadata;
             document.Status = DocumentStatus.Submitted;
             document.SubmittedAt = DateTime.Now;
             document.UpdatedAt = DateTime.Now;

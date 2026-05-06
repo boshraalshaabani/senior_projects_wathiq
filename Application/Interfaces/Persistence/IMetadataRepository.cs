@@ -4,13 +4,13 @@ namespace eArchiveSystem.Application.Interfaces.Persistence
 {
     public interface IMetadataRepository
     {
-        // 🔹 Create or Update (Id = DocumentId)
+        // Creates or updates metadata by document id.
         Task UpsertAsync(Metadata metadata);
 
-        // 🔹 Read
+        // Returns metadata by document id.
         Task<Metadata?> GetByDocumentIdAsync(string documentId);
 
-        // 🔹 Delete
+        // Deletes metadata by document id.
         Task<bool> DeleteByDocumentIdAsync(string documentId);
     }
 }

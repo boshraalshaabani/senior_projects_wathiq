@@ -11,6 +11,6 @@ namespace eArchiveSystem.Application.DTOs
         public DateTime? ReviewedAt { get; set; }
         public DateTime? PublishedAt { get; set; }
         public DateTime? ArchivedAt { get; set; }
-        public string? RejectionReason { get; set; } // للرفض فقط
+        public string? RejectionReason { get; set; } // Set when the document is rejected.
     }
 }

@@ -175,6 +175,9 @@ namespace eArchiveSystem.Application.Services
             if (!_authorization.CanView(actor, doc))
                 throw new UnauthorizedActionException("You are not allowed to view this document");
 
+            var metadata = await _metadata.GetByDocumentIdAsync(id);
+            doc.Metadata = metadata ?? doc.Metadata;
+
             var owner = await _users.GetByIdAsync(doc.UserId);
             doc.OwnerName = owner?.Name;
 
@@ -199,6 +202,39 @@ namespace eArchiveSystem.Application.Services
                 CreatedAt = doc.CreatedAt,
                 Metadata = doc.Metadata,
                 OwnerEmail = owner?.Email
+            };
+        }
+
+        public async Task<DocumentOcrTextDto> GetExtractedTextAsync(string documentId, string userId, string role)
+        {
+            var doc = await _documents.GetByIdAsync(documentId);
+            if (doc == null)
+                throw new NotFoundException("Document not found");
+
+            var actor = await _users.GetByIdAsync(userId)
+                ?? throw new NotFoundException("User not found");
+
+            if (!_authorization.CanView(actor, doc))
+                throw new UnauthorizedActionException("You are not allowed to view this document");
+
+            await _audit.LogAsync(
+                userId,
+                role,
+                "ViewDocumentOcrText",
+                documentId,
+                $"User {userId} viewed OCR text for document {documentId}");
+
+            return new DocumentOcrTextDto
+            {
+                DocumentId = doc.Id,
+                Title = doc.Title,
+                Status = doc.Status,
+                RawText = doc.RawOcrText ?? string.Empty,
+                NormalizedText = doc.NormalizedOcrText ?? doc.Content ?? string.Empty,
+                Provider = doc.OcrProvider,
+                Language = doc.OcrLanguage,
+                Pages = doc.OcrPages,
+                ExtractedAt = doc.OcrUpdatedAt
             };
         }
 
@@ -279,6 +315,12 @@ namespace eArchiveSystem.Application.Services
                 doc.FileHash = newHash;
                 doc.FilePath = newPath;
                 doc.Content = null;
+                doc.RawOcrText = null;
+                doc.NormalizedOcrText = null;
+                doc.OcrProvider = null;
+                doc.OcrLanguage = null;
+                doc.OcrPages = null;
+                doc.OcrUpdatedAt = null;
                 doc.Metadata = null;
                 doc.Status = DocumentStatus.Processing;
                 fileWasReplaced = true;
@@ -338,14 +380,34 @@ namespace eArchiveSystem.Application.Services
             if (!deleted)
                 throw new NotFoundException("Document not found");
 
-            await _indexing.RemoveDocumentAsync(doc.Id);
+            try
+            {
+                await _indexing.RemoveDocumentAsync(doc.Id);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Document {DocumentId} was deleted, but search index cleanup failed.",
+                    doc.Id);
+            }
 
-            await _audit.LogAsync(
-                userId,
-                role,
-                "DeleteDocument",
-                doc.Id,
-                $"User {userId} deleted document '{doc.Title}'");
+            try
+            {
+                await _audit.LogAsync(
+                    userId,
+                    role,
+                    "DeleteDocument",
+                    doc.Id,
+                    $"User {userId} deleted document '{doc.Title}'");
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Document {DocumentId} was deleted, but audit logging failed.",
+                    doc.Id);
+            }
         }
 
         private async Task TriggerOcrAsync(string documentId, string filePath)

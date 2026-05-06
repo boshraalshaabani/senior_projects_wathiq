@@ -6,6 +6,7 @@ namespace eArchiveSystem.Presentation.Controllers
 {
     [ApiController]
     [Route("api/reports")]
+    // Exposes reporting and export endpoints.
     public class ReportsController : ControllerBase
     {
         private readonly IReportService _reports;
@@ -15,7 +16,7 @@ namespace eArchiveSystem.Presentation.Controllers
             _reports = reports;
         }
 
-        //  عدد الوثائق حسب القسم
+        // Returns document counts grouped by department.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("documents-by-department")]
         public async Task<IActionResult> CountByDepartment()
@@ -25,7 +26,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
-        //  عدد الوثائق حسب النوع
+        // Returns document counts grouped by type.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("documents-by-type")]
         public async Task<IActionResult> CountByType()
@@ -35,7 +36,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
-        //  نشاط المستخدمين
+        // Returns user activity metrics.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("user-activity")]
         public async Task<IActionResult> UserActivity()
@@ -45,7 +46,7 @@ namespace eArchiveSystem.Presentation.Controllers
             return Ok(result);
         }
 
-        //  تقارير زمنية
+        // Returns time-based document metrics.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("time-report")]
         public async Task<IActionResult> TimeReport()
@@ -54,9 +55,7 @@ namespace eArchiveSystem.Presentation.Controllers
             var result = await _reports.GetTimeReportAsync(requesterId);
             return Ok(result);
         }
-        // ============================
-        // B) EXPORT - DEPARTMENT
-        // ============================
+        // Exports the department report as Excel.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/department/excel")]
         public async Task<IActionResult> ExportDeptExcel()
@@ -67,6 +66,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "DepartmentReport.xlsx");
         }
+        // Exports the department report as PDF.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/department/pdf")]
         public async Task<IActionResult> ExportDeptPdf()
@@ -78,9 +78,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "DepartmentReport.pdf");
         }
 
-        // ============================
-        // C) EXPORT - TYPE
-        // ============================
+        // Exports the type report as Excel.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/type/excel")]
         public async Task<IActionResult> ExportTypeExcel()
@@ -91,6 +89,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "DocumentTypeReport.xlsx");
         }
+        // Exports the type report as PDF.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/type/pdf")]
         public async Task<IActionResult> ExportTypePdf()
@@ -102,9 +101,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "DocumentTypeReport.pdf");
         }
 
-        // ============================
-        // D) EXPORT - USER ACTIVITY
-        // ============================
+        // Exports the user activity report as Excel.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/user-activity/excel")]
         public async Task<IActionResult> ExportUserExcel()
@@ -115,6 +112,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 "UserActivityReport.xlsx");
         }
+        // Exports the user activity report as PDF.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/user-activity/pdf")]
         public async Task<IActionResult> ExportUserPdf()
@@ -125,6 +123,7 @@ namespace eArchiveSystem.Presentation.Controllers
                 "application/pdf",
                 "UserActivityReport.pdf");
         }
+        // Exports all visible documents as Excel.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet("export/all-documents/excel")]
         public async Task<IActionResult> ExportAllDocumentsExcel()

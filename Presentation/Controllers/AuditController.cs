@@ -6,7 +6,7 @@ namespace eArchiveSystem.Presentation.Controllers
 {
     [ApiController]
     [Route("api/audit")]
-
+    // Returns audit logs for authorized roles.
     public class AuditController : ControllerBase
     {
         private readonly IAuditService _audit;
@@ -16,7 +16,7 @@ namespace eArchiveSystem.Presentation.Controllers
             _audit = audit;
         }
 
-        // حاليًا الوصول محصور بالأدوار التي كانت تستعمل هذه الشاشة سابقًا
+        // Keeps audit access limited to the roles that already use this screen.
         [Authorize(Roles = "SystemAdmin,InstitutionAdmin,Manager")]
         [HttpGet]
         public async Task<IActionResult> GetAuditLogs()

@@ -6,7 +6,7 @@
         public DateTime Timestamp { get; set; }
 
         public string UserId { get; set; }
-        public string UserName { get; set; }   // 🔥 الاسم
+        public string UserName { get; set; }   // Actor display name.
         public string UserRole { get; set; }
 
         public string Action { get; set; }

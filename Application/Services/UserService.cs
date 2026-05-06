@@ -9,6 +9,7 @@ using eArchiveSystem.Utils;
 
 namespace eArchiveSystem.Application.Services
 {
+    // Handles authentication, user administration, and account security flows.
     public class UserService : IUserService
     {
         private readonly IUserRepository _repo;
@@ -41,7 +42,7 @@ namespace eArchiveSystem.Application.Services
         }
 
 
-        // ADD USER  (Instead of Register)
+        // Creates a user with role and department validation.
         public async Task<User> AddUser(AddUserDto dto, string requesterId)
         {
             var requester = await _repo.GetByIdAsync(requesterId);
@@ -96,7 +97,7 @@ namespace eArchiveSystem.Application.Services
             return user;
         }
 
-        // LOGIN
+        // Authenticates credentials and starts 2FA when enabled.
       
 
         public async Task<AuthResult> Login(LoginDto dto)
@@ -116,14 +117,14 @@ namespace eArchiveSystem.Application.Services
             }
 
 
-            // 1) Check if user is locked
+            // Reject locked accounts early.
             if (user.LockoutUntil != null && user.LockoutUntil > DateTime.UtcNow)
             {
                 var remainingSeconds = (int)(user.LockoutUntil.Value - DateTime.UtcNow).TotalSeconds;
                 throw new ValidationException($"Account locked. Try again after {remainingSeconds} seconds");
             }
 
-            // 2) Verify password
+            // Validate the submitted password.
             bool isMatch = _hasher.Verify(dto.Password, user.Password);
 
             if (!isMatch)
@@ -132,7 +133,7 @@ namespace eArchiveSystem.Application.Services
 
                 if (user.FailedLoginAttempts >= 3)
                 {
-                    user.LockoutUntil = DateTime.UtcNow.AddMinutes(1); // Lock 1 minute
+                    user.LockoutUntil = DateTime.UtcNow.AddMinutes(1); // Lock for 1 minute.
 
                     await _audit.LogAsync(
                          user.Id,
@@ -155,10 +156,10 @@ namespace eArchiveSystem.Application.Services
                 throw new ValidationException("Invalid email or password");
             }
 
-            // 3) Reset counters
+            // Reset login counters after a successful password check.
             user.FailedLoginAttempts = 0;
             user.LockoutUntil = null;
-            //  TWO-FACTOR AUTH
+            // Send a verification code when 2FA is enabled.
        
             if (user.TwoFactorEnabled)
             {
@@ -190,7 +191,7 @@ namespace eArchiveSystem.Application.Services
             }
 
 
-            // لو 2FA غير مفعّل → توكن طبيعي
+            // Issue a JWT when 2FA is not enabled.
             string token = _token.GenerateJwtToken(user);
             await _repo.UpdateAsync(user.Id, user);
 
@@ -211,14 +212,14 @@ namespace eArchiveSystem.Application.Services
 
         } 
 
-        // LOGOUT
+        // Returns the stateless logout response.
         public Task<string> Logout()
         {
-       // JWT Stateless
+       // JWT logout is handled on the client side.
             return Task.FromResult("Logged out successfully");
         }
 
-        // UPDATE USER (Admin)
+        // Updates a user's role within the allowed admin scope.
         public async Task<string> AssignRole(string id, string newRole, string requesterId)
         {
             var requester = await _repo.GetByIdAsync(requesterId);
@@ -229,7 +230,7 @@ namespace eArchiveSystem.Application.Services
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            // Validate roles
+            // Accept only supported role values.
             var validRoles = new[] { ApplicationRoles.SystemAdmin, ApplicationRoles.InstitutionAdmin, ApplicationRoles.Manager, ApplicationRoles.Employee };
             if (!validRoles.Contains(newRole))
                 throw new ValidationException("Invalid role");
@@ -259,7 +260,7 @@ namespace eArchiveSystem.Application.Services
         }
 
 
-        // DELETE USER (Admin)
+        // Deletes a user within the allowed admin scope.
         public async Task<string> DeleteUser(string id, string requesterRole, string requesterId)
         {
             var requester = await _repo.GetByIdAsync(requesterId);
@@ -286,13 +287,14 @@ namespace eArchiveSystem.Application.Services
             await _repo.DeleteAsync(id);
             return "User deleted successfully";
         }
+        // Updates the current user's profile fields.
         public async Task<string> UpdateProfile(string userId, UpdateProfileDto dto)
         {
             var user = await _repo.GetByIdAsync(userId);
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            // تعديل الاسم والإيميل دائماً مسموح
+            // Users can always update their own name and email.
             if (!string.IsNullOrEmpty(dto.Name))
                 user.Name = dto.Name;
 
@@ -317,6 +319,7 @@ namespace eArchiveSystem.Application.Services
               );
             return "Profile updated successfully";
         }
+        // Changes the current user's password.
         public async Task<string> ChangePassword(string userId, ChangePasswordDto dto)
         {
             var user = await _repo.GetByIdAsync(userId);
@@ -349,10 +352,7 @@ namespace eArchiveSystem.Application.Services
             return "Password updated successfully";
         }
 
-        // =========================
-        // 2FA (Two-Factor Authentication)
-        // =========================
-
+        // Returns whether 2FA is enabled for the current user.
         public async Task<bool> GetTwoFactorEnabled(string userId)
         {
             var user = await _repo.GetByIdAsync(userId);
@@ -362,6 +362,7 @@ namespace eArchiveSystem.Application.Services
             return user.TwoFactorEnabled;
         }
 
+        // Enables or disables 2FA for the current user.
         public async Task<string> SetTwoFactorEnabled(string userId, bool enabled)
         {
             var user = await _repo.GetByIdAsync(userId);
@@ -370,7 +371,7 @@ namespace eArchiveSystem.Application.Services
 
             user.TwoFactorEnabled = enabled;
 
-            // If disabling, clear any in-flight code
+            // Clear any pending code when 2FA is disabled.
             if (!enabled)
             {
                 user.TwoFactorCode = null;
@@ -391,6 +392,7 @@ namespace eArchiveSystem.Application.Services
             return enabled ? "Two-factor authentication enabled" : "Two-factor authentication disabled";
         }
 
+        // Creates a system admin account.
         public async Task<User> CreateAdmin(CreateAdminDto dto)
         {
             var exists = await _repo.GetByEmailAsync(dto.Email);
@@ -411,6 +413,7 @@ namespace eArchiveSystem.Application.Services
 
             return admin;
         }
+        // Updates a user as an administrator.
         public async Task<string> EditUser(string id, UpdateUserDto dto, string requesterId)
         {
             var requester = await _repo.GetByIdAsync(requesterId);
@@ -434,15 +437,15 @@ namespace eArchiveSystem.Application.Services
                 throw new UnauthorizedActionException("You are not allowed to edit users");
             }
 
-            // تعديل الاسم
+            // Update the name when it is provided.
             if (!string.IsNullOrEmpty(dto.Name))
                 user.Name = dto.Name;
 
-            // تعديل الإيميل
+            // Update the email when it is provided.
             if (!string.IsNullOrEmpty(dto.Email))
                 user.Email = dto.Email;
 
-            // تعديل كلمة المرور من قبل الأدمن
+            // Allow admins to replace the password.
             if (!string.IsNullOrEmpty(dto.NewPassword))
                 user.Password = _hasher.Hash(dto.NewPassword);
 
@@ -460,11 +463,12 @@ namespace eArchiveSystem.Application.Services
 
             return "User updated successfully";
         }
-        // توليد كود OTP من 6 أرقام
+        // Generates a 6-digit reset code.
         private string GenerateResetCode()
         {
             return new Random().Next(100000, 999999).ToString();
         }
+        // Sends a password reset code to the user.
         public async Task<string> ForgotPassword(ForgotPasswordDto dto)
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
@@ -487,6 +491,7 @@ namespace eArchiveSystem.Application.Services
             return "Reset code sent to your email";
         }
 
+        // Resets the password after code validation.
         public async Task<string> ResetPassword(ResetPasswordDto dto)
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
@@ -508,15 +513,16 @@ namespace eArchiveSystem.Application.Services
             return "Password has been reset successfully";
         }
 
+        // Returns the visible users for the current admin.
         public async Task<List<UserDto>> GetUsers(string? role, string? search, string currentUserId)
         {
             var users = await _repo.GetAllAsync();
             var currentUser = await _repo.GetByIdAsync(currentUserId);
 
-            // استثناء المستخدم الحالي من النتائج
+            // Exclude the current user from the result.
             users = users.Where(u => u.Id != currentUserId).ToList();
 
-            // فلترة حسب الدور
+            // Filter by role when requested.
             if (!string.IsNullOrEmpty(role))
             {
                 users = users
@@ -532,7 +538,7 @@ namespace eArchiveSystem.Application.Services
                     .ToList();
             }
 
-            // بحث بالاسم أو الإيميل
+            // Filter by name or email.
             if (!string.IsNullOrEmpty(search))
             {
                 search = search.ToLower();
@@ -553,6 +559,7 @@ namespace eArchiveSystem.Application.Services
                 Department = u.Department
             }).ToList();
         }
+        // Creates the configured bootstrap admin when no system admin exists.
         public async Task CreateBootstrapAdminIfNotExists()
         {
             var systemAdminExists = await _repo.GetByRoleAsync(ApplicationRoles.SystemAdmin);
@@ -580,6 +587,7 @@ namespace eArchiveSystem.Application.Services
             });
         }
 
+        // Verifies the submitted 2FA code and issues a token.
         public async Task<AuthResult> VerifyTwoFactorAsync(Verify2FADto dto)
         {
             var user = await _repo.GetByEmailAsync(dto.Email);
@@ -592,7 +600,7 @@ namespace eArchiveSystem.Application.Services
             if (user.TwoFactorCode != dto.Code)
                 throw new ValidationException("Invalid verification code");
 
-            // Clear code after success
+            // Clear the one-time code after a successful verification.
             user.TwoFactorCode = null;
             user.TwoFactorExpiry = null;
             string token = _token.GenerateJwtToken(user);

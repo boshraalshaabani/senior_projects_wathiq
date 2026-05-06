@@ -19,7 +19,7 @@ namespace eArchiveSystem.Domain.Models
         public string Password { get; set; }
 
         [BsonElement("role")]
-        public string Role { get; set; }   // SystemAdmin / InstitutionAdmin / Manager / Employee
+        public string Role { get; set; }   // Access role used by authorization.
 
         [BsonElement("institutionId")]
         public string? InstitutionId { get; set; }

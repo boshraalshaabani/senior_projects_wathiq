@@ -29,7 +29,7 @@ namespace eArchiveSystem.Presentation.Controllers
                     monthlyUpdates = await _dashboard.GetMonthlyUpdatesAsync(requesterId)
                 };
 
-                return Ok(result);
+                return Ok(result); 
             }
 
             [HttpGet("documents-by-department")]
@@ -40,7 +40,7 @@ namespace eArchiveSystem.Presentation.Controllers
             }
 
             [HttpGet("documents-by-type")]
-            public async Task<IActionResult> DocumentsByType()
+            public async Task<IActionResult> DocumentsByType() 
             {
                 var requesterId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!;
                 return Ok(await _dashboard.GetDocumentsByTypeAsync(requesterId));
