@@ -118,3 +118,33 @@ jobs:
         with:
           name: staging-preview
           path: artifacts/
+
+  performance-baseline:
+    name: Performance Baseline
+    needs: build-and-unit-test
+    if: github.ref_name == 'Testing' || github.base_ref == 'Testing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore solution
+        run: dotnet restore eArchiveSystem/eArchiveSystem.sln
+
+      - name: Run performance baseline
+        env:
+          WATHIQ_PERFORMANCE_OUTPUT: artifacts/performance
+        run: dotnet test tests/eArchiveSystem.PerformanceRunner/eArchiveSystem.PerformanceRunner.csproj --configuration Release --no-restore --filter "Layer=Performance" --logger "trx;LogFileName=eArchiveSystem-performance-tests.trx" --results-directory TestResults/eArchiveSystem.PerformanceRunner
+
+      - name: Upload performance baseline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-baseline
+          path: |
+            artifacts/performance/
+            TestResults/eArchiveSystem.PerformanceRunner/**/*.trx

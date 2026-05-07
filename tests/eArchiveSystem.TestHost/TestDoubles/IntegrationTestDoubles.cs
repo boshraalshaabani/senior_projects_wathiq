@@ -2,9 +2,10 @@ using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
-using eArchiveSystem.IntegrationTests.Infrastructure;
+using eArchiveSystem.Domain.Models;
+using eArchiveSystem.TestHost.Infrastructure;
 
-namespace eArchiveSystem.IntegrationTests.TestDoubles;
+namespace eArchiveSystem.TestHost.TestDoubles;
 
 internal sealed class InMemoryUserRepository : IUserRepository
 {
@@ -257,18 +258,169 @@ internal sealed class TrackingIndexingService : IIndexingService
 
     public Task SyncDocumentAsync(string documentId)
     {
-        _state.IndexedDocumentIds.Add(documentId);
+        if (!_state.IndexedDocumentIds.Contains(documentId, StringComparer.OrdinalIgnoreCase))
+        {
+            _state.IndexedDocumentIds.Add(documentId);
+        }
+
         return Task.CompletedTask;
     }
 
-    public Task RemoveDocumentAsync(string documentId) => Task.CompletedTask;
+    public Task RemoveDocumentAsync(string documentId)
+    {
+        _state.IndexedDocumentIds.RemoveAll(id => string.Equals(id, documentId, StringComparison.OrdinalIgnoreCase));
+        return Task.CompletedTask;
+    }
 
     public Task EnsureIndexReadyAsync() => Task.CompletedTask;
 
-    public Task ReindexAllAsync(bool recreateIndex = false) => Task.CompletedTask;
+    public Task ReindexAllAsync(bool recreateIndex = false)
+    {
+        _state.IndexedDocumentIds.Clear();
+        _state.IndexedDocumentIds.AddRange(_state.Documents.Keys);
+        return Task.CompletedTask;
+    }
 
-    public Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope) =>
-        Task.FromResult((new List<SearchDocumentIndex>(), 0L));
+    public Task<(List<SearchDocumentIndex> Results, long Total)> SearchAsync(SearchDocumentsDto dto, SearchAccessScope scope)
+    {
+        IEnumerable<Document> documents = _state.Documents.Values
+            .Where(document => _state.IndexedDocumentIds.Contains(document.Id, StringComparer.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(scope.OwnerUserId))
+        {
+            documents = documents.Where(document => string.Equals(document.UserId, scope.OwnerUserId, StringComparison.OrdinalIgnoreCase));
+        }
+        else if (!string.IsNullOrWhiteSpace(scope.InstitutionId))
+        {
+            documents = documents.Where(document => string.Equals(document.InstitutionId, scope.InstitutionId, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(scope.DepartmentId))
+            {
+                documents = documents.Where(document =>
+                    string.Equals(document.DepartmentId ?? document.Department, scope.DepartmentId, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Query))
+        {
+            documents = documents.Where(document => MatchesQuery(document, dto.Query));
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Category))
+        {
+            documents = documents.Where(document =>
+                string.Equals(document.Metadata?.Category, dto.Category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.DepartmentId) || !string.IsNullOrWhiteSpace(dto.Department))
+        {
+            var requestedDepartment = dto.DepartmentId ?? dto.Department;
+            documents = documents.Where(document =>
+                string.Equals(document.DepartmentId ?? document.Department, requestedDepartment, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (dto.Status.HasValue)
+        {
+            documents = documents.Where(document => document.Status == dto.Status.Value);
+        }
+
+        if (dto.Priority.HasValue)
+        {
+            documents = documents.Where(document => document.Priority == dto.Priority.Value);
+        }
+
+        if (dto.FromDate.HasValue)
+        {
+            documents = documents.Where(document => document.CreatedAt >= dto.FromDate.Value);
+        }
+
+        if (dto.ToDate.HasValue)
+        {
+            documents = documents.Where(document => document.CreatedAt <= dto.ToDate.Value);
+        }
+
+        documents = ApplySorting(documents, dto);
+
+        var total = documents.LongCount();
+        var page = dto.Page <= 0 ? 1 : dto.Page;
+        var pageSize = dto.PageSize <= 0 ? 10 : dto.PageSize;
+
+        var paged = documents
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapToIndex)
+            .ToList();
+
+        return Task.FromResult((paged, total));
+    }
+
+    private static IEnumerable<Document> ApplySorting(IEnumerable<Document> documents, SearchDocumentsDto dto)
+    {
+        var sortBy = dto.SortBy?.Trim().ToLowerInvariant();
+        var descending = dto.Desc;
+
+        return sortBy switch
+        {
+            "title" => descending
+                ? documents.OrderByDescending(document => document.Title)
+                : documents.OrderBy(document => document.Title),
+            "updatedat" => descending
+                ? documents.OrderByDescending(document => document.UpdatedAt)
+                : documents.OrderBy(document => document.UpdatedAt),
+            _ => descending
+                ? documents.OrderByDescending(document => document.CreatedAt)
+                : documents.OrderBy(document => document.CreatedAt)
+        };
+    }
+
+    private static bool MatchesQuery(Document document, string query)
+    {
+        var comparison = StringComparison.OrdinalIgnoreCase;
+        return (document.Title?.Contains(query, comparison) ?? false)
+            || (document.Content?.Contains(query, comparison) ?? false)
+            || (document.NormalizedOcrText?.Contains(query, comparison) ?? false)
+            || (document.RawOcrText?.Contains(query, comparison) ?? false)
+            || (document.Metadata?.Description?.Contains(query, comparison) ?? false)
+            || (document.Metadata?.ReferenceNumber?.Contains(query, comparison) ?? false)
+            || (document.Metadata?.Category?.Contains(query, comparison) ?? false);
+    }
+
+    private static SearchDocumentIndex MapToIndex(Document document)
+    {
+        return new SearchDocumentIndex
+        {
+            Id = document.Id,
+            Title = document.Title,
+            Content = document.Content ?? string.Empty,
+            Description = document.Metadata?.Description,
+            Snippet = CreateSnippet(document),
+            InstitutionId = document.InstitutionId ?? string.Empty,
+            DepartmentId = document.DepartmentId ?? document.Department ?? string.Empty,
+            Department = document.Department ?? document.DepartmentId ?? string.Empty,
+            UserId = document.UserId,
+            IsSensitive = document.IsSensitive,
+            Category = document.Metadata?.Category,
+            DocumentType = document.Metadata?.DocumentType,
+            IssuingEntity = document.Metadata?.IssuingEntity,
+            ReferenceNumber = document.Metadata?.ReferenceNumber,
+            Status = document.Status,
+            Priority = document.Priority,
+            Tags = document.Metadata?.Tags ?? new List<string>(),
+            CreatedAt = document.CreatedAt,
+            UpdatedAt = document.UpdatedAt
+        };
+    }
+
+    private static string? CreateSnippet(Document document)
+    {
+        var content = document.Content ?? document.NormalizedOcrText ?? document.RawOcrText;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        return content.Length <= 120 ? content : content[..120];
+    }
 }
 
 internal sealed class TrackingNotificationService : INotificationService

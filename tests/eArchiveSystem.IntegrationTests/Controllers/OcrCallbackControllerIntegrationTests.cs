@@ -1,4 +1,4 @@
-using eArchiveSystem.IntegrationTests.Infrastructure;
+using eArchiveSystem.TestHost.Infrastructure;
 
 namespace eArchiveSystem.IntegrationTests.Controllers;
 

@@ -1,4 +1,6 @@
-namespace eArchiveSystem.IntegrationTests.Infrastructure;
+using eArchiveSystem.Domain.Models;
+
+namespace eArchiveSystem.TestHost.Infrastructure;
 
 public sealed class IntegrationTestState
 {

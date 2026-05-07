@@ -1,8 +1,9 @@
 using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
+using eArchiveSystem.Domain.Models;
 using eArchiveSystem.Infrastructure.Security;
-using eArchiveSystem.IntegrationTests.TestDoubles;
+using eArchiveSystem.TestHost.TestDoubles;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,9 +12,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
+using System.Net.Http.Headers;
 using System.Text;
 
-namespace eArchiveSystem.IntegrationTests.Infrastructure;
+namespace eArchiveSystem.TestHost.Infrastructure;
 
 public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
@@ -26,6 +28,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.UseContentRoot(ResolveApplicationContentRoot());
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -109,5 +112,26 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
         var client = CreateApiClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken(user));
         return client;
+    }
+
+    private static string ResolveApplicationContentRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (current is not null)
+        {
+            var applicationRoot = Path.Combine(current.FullName, "eArchiveSystem");
+            var projectFile = Path.Combine(applicationRoot, "eArchiveSystem.csproj");
+
+            if (File.Exists(projectFile))
+            {
+                return applicationRoot;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException(
+            $"Could not locate the eArchiveSystem content root from base directory '{AppContext.BaseDirectory}'.");
     }
 }
