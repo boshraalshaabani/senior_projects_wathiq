@@ -33,16 +33,6 @@ senior_projects_wathiq
 
 ---
 
-## Team
-
-| Name |
-|------|
-| Salam Almasri |
-| Najat Bostaty |
-| Bushra Alshaabani |
-
----
-
 ## Prerequisites
 
 Before running the project, make sure you have the following installed:
