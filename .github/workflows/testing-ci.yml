@@ -1,0 +1,98 @@
+name: Risk-Based Testing CI
+
+on:
+  push:
+    branches:
+      - Testing
+      - development
+      - main
+  pull_request:
+    branches:
+      - Testing
+      - development
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-unit-test:
+    name: Build and Unit Test
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore solution
+        run: dotnet restore eArchiveSystem/eArchiveSystem.sln
+
+      - name: Build main API
+        run: dotnet build eArchiveSystem/eArchiveSystem.csproj --configuration Release --no-restore
+
+      - name: Build OCR service
+        run: dotnet build eArchive.OcrService/eArchive.OcrService.csproj --configuration Release --no-restore
+
+      - name: Run backend unit tests with coverage
+        run: dotnet test tests/eArchiveSystem.UnitTests/eArchiveSystem.UnitTests.csproj --configuration Release --no-restore --logger "trx;LogFileName=eArchiveSystem-unit-tests.trx" --results-directory TestResults/eArchiveSystem.UnitTests --collect:"XPlat Code Coverage"
+
+      - name: Run OCR unit tests with coverage
+        run: dotnet test tests/eArchive.OcrService.UnitTests/eArchive.OcrService.UnitTests.csproj --configuration Release --no-restore --logger "trx;LogFileName=eArchive.OcrService-unit-tests.trx" --results-directory TestResults/eArchive.OcrService.UnitTests --collect:"XPlat Code Coverage"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/coverage.cobertura.xml
+
+  staging-preview:
+    name: Staging Preview Package
+    needs: build-and-unit-test
+    if: github.ref_name == 'Testing' || github.base_ref == 'Testing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore solution
+        run: dotnet restore eArchiveSystem/eArchiveSystem.sln
+
+      - name: Publish main API
+        run: dotnet publish eArchiveSystem/eArchiveSystem.csproj --configuration Release --no-restore --output artifacts/eArchiveSystem
+
+      - name: Publish OCR service
+        run: dotnet publish eArchive.OcrService/eArchive.OcrService.csproj --configuration Release --no-restore --output artifacts/eArchive.OcrService
+
+      - name: Upload staging preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-preview
+          path: artifacts/
