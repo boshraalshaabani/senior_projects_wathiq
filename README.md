@@ -9,6 +9,16 @@ The system is made up of two services that work together:
 
 ---
 
+
+## Project Structure
+
+```text
+senior_projects_wathiq
+├── eArchiveSystem          # Main backend API
+└── eArchive.OcrService     # Separate OCR microservice
+```
+
+---
 ## Key Features
 
 - Upload and manage documents with automatic duplicate detection
@@ -40,7 +50,7 @@ Before running the project, make sure you have the following installed:
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
 - [MongoDB](https://www.mongodb.com/try/download/community) — running on `localhost:27017`
 - [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) — running on `localhost:9200`
-- A [Groq API Key](https://console.groq.com) (free)
+- A [Groq API Key](https://console.groq.com) 
 - Windows OS (required for PDF rendering)
 
 ---
@@ -64,6 +74,8 @@ Go into the `eArchiveSystem` folder and create a local config file:
 cd eArchiveSystem
 cp appsettings.json appsettings.Development.local.json
 ```
+
+Do not commit `appsettings.Development.local.json` because it contains local secrets.
 
 Open `appsettings.Development.local.json` and fill in the following:
 
