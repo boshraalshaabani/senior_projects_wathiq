@@ -27,9 +27,28 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: gitleaks
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:latest \
+            dir /repo \
+            --redact \
+            --exit-code 1 \
+            --report-format sarif \
+            --report-path /repo/gitleaks-results.sarif
+
+      - name: Upload Gitleaks report
+        if: always() && hashFiles('gitleaks-results.sarif') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results
+          path: gitleaks-results.sarif
+
+      - name: Fail if Gitleaks detects leaks
+        if: steps.gitleaks.outcome == 'failure'
+        run: exit 1
 
   build-and-unit-test:
     name: Build and Unit Test
