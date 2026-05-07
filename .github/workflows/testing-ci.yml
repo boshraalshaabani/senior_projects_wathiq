@@ -51,7 +51,7 @@ jobs:
         run: exit 1
 
   build-and-unit-test:
-    name: Build and Unit Test
+    name: Build and Test
     needs: secret-scan
     runs-on: ubuntu-latest
     steps:
@@ -78,11 +78,14 @@ jobs:
       - name: Run OCR unit tests with coverage
         run: dotnet test tests/eArchive.OcrService.UnitTests/eArchive.OcrService.UnitTests.csproj --configuration Release --no-restore --logger "trx;LogFileName=eArchive.OcrService-unit-tests.trx" --results-directory TestResults/eArchive.OcrService.UnitTests --collect:"XPlat Code Coverage"
 
+      - name: Run backend integration tests with coverage
+        run: dotnet test tests/eArchiveSystem.IntegrationTests/eArchiveSystem.IntegrationTests.csproj --configuration Release --no-restore --logger "trx;LogFileName=eArchiveSystem-integration-tests.trx" --results-directory TestResults/eArchiveSystem.IntegrationTests --collect:"XPlat Code Coverage"
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
+          name: test-results
           path: |
             TestResults/**/*.trx
             TestResults/**/coverage.cobertura.xml
