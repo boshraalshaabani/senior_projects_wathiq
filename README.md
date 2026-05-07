@@ -14,8 +14,8 @@ The system is made up of two services that work together:
 
 ```text
 senior_projects_wathiq
-├── eArchiveSystem          ## Main backend API
-└── eArchive.OcrService     ## Separate OCR microservice
+├── eArchiveSystem           Main backend API
+└── eArchive.OcrService      Separate OCR microservice
 ```
 
 ---
