@@ -27,11 +27,19 @@ Thumbs.db
 
 # Environment
 .env
+.env.*
 appsettings.Development.local.json
 .local/
 
 # Uploads (optional if large)
 uploads/
 
+allfiles.txt
 
-allfiles.txt 
+# Frontend local files
+wathiq-frontend/node_modules/
+wathiq-frontend/.dotnet/
+wathiq-frontend/.dotnet-build/
+wathiq-frontend/tools/
+wathiq-frontend/.env.local
+wathiq-frontend/dist/
