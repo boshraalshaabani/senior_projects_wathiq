@@ -31,3 +31,12 @@ uploads/
 
 
 allfiles.txt 
+TestResults/
+artifacts/
+.env.*
+wathiq-frontend/node_modules/
+wathiq-frontend/dist/
+wathiq-frontend/.dotnet/
+wathiq-frontend/.dotnet-build/
+
+wathiq-frontend/tools/
