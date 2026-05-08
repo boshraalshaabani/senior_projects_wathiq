@@ -1,4 +1,4 @@
-using eArchiveSystem.Domain.Models;
+﻿using eArchiveSystem.Domain.Models;
 
 namespace eArchiveSystem.TestHost.Infrastructure;
 
@@ -14,4 +14,6 @@ public sealed class IntegrationTestState
     public List<string> TransferredDocumentIds { get; } = new();
     public List<(string UserId, string Action, string? DocumentId, string Description)> AuditEntries { get; } = new();
     public List<(string To, string Subject, string Body)> SentEmails { get; } = new();
+    public List<AuditLog> AuditLogs { get; } = new();
 }
+

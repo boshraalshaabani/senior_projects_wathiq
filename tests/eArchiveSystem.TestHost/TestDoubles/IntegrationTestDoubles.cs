@@ -1,4 +1,4 @@
-using eArchiveSystem.Application.DTOs;
+﻿using eArchiveSystem.Application.DTOs;
 using eArchiveSystem.Application.Interfaces.Persistence;
 using eArchiveSystem.Application.Interfaces.Security;
 using eArchiveSystem.Application.Interfaces.Services;
@@ -7,7 +7,7 @@ using eArchiveSystem.TestHost.Infrastructure;
 
 namespace eArchiveSystem.TestHost.TestDoubles;
 
-internal sealed class InMemoryUserRepository : IUserRepository
+public sealed class InMemoryUserRepository : IUserRepository
 {
     private readonly IntegrationTestState _state;
 
@@ -54,7 +54,7 @@ internal sealed class InMemoryUserRepository : IUserRepository
         Task.FromResult(_state.Users.Values.Where(user => ids.Contains(user.Id)).ToList());
 }
 
-internal sealed class InMemoryDocumentRepository : IDocumentRepository
+public sealed class InMemoryDocumentRepository : IDocumentRepository
 {
     private readonly IntegrationTestState _state;
 
@@ -158,7 +158,7 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
     }
 }
 
-internal sealed class InMemoryMetadataRepository : IMetadataRepository
+public sealed class InMemoryMetadataRepository : IMetadataRepository
 {
     private readonly IntegrationTestState _state;
 
@@ -180,7 +180,7 @@ internal sealed class InMemoryMetadataRepository : IMetadataRepository
         Task.FromResult(_state.Metadata.Remove(documentId));
 }
 
-internal sealed class InMemoryDepartmentRepository : IDepartmentRepository
+public sealed class InMemoryDepartmentRepository : IDepartmentRepository
 {
     private readonly IntegrationTestState _state;
 
@@ -216,7 +216,82 @@ internal sealed class InMemoryDepartmentRepository : IDepartmentRepository
             department => department.InstitutionId == institutionId).ToList());
 }
 
-internal sealed class TrackingAuditService : IAuditService
+
+public sealed class InMemoryAuditRepository : IAuditRepository
+{
+    private readonly IntegrationTestState _state;
+
+    public InMemoryAuditRepository(IntegrationTestState state)
+    {
+        _state = state;
+    }
+
+    public Task CreateAsync(AuditLog log)
+    {
+        if (string.IsNullOrWhiteSpace(log.Id))
+        {
+            log.Id = Guid.NewGuid().ToString();
+        }
+
+        if (log.Timestamp == default)
+        {
+            log.Timestamp = DateTime.UtcNow;
+        }
+
+        _state.AuditLogs.Add(log);
+        _state.AuditEntries.Add((log.UserId, log.Action, string.IsNullOrWhiteSpace(log.DocumentId) ? null : log.DocumentId, log.Description));
+        return Task.CompletedTask;
+    }
+
+    public Task<List<AuditLog>> GetByDocumentIdAsync(string documentId) =>
+        Task.FromResult(_state.AuditLogs.Where(log => string.Equals(log.DocumentId, documentId, StringComparison.OrdinalIgnoreCase)).ToList());
+
+    public Task<(List<AuditLog> Logs, long TotalCount)> GetFilteredAsync(
+        string? userId,
+        string? role,
+        string? action,
+        DateTime? from,
+        DateTime? to,
+        int page,
+        int pageSize)
+    {
+        IEnumerable<AuditLog> query = _state.AuditLogs;
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            query = query.Where(log => string.Equals(log.UserId, userId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            query = query.Where(log => string.Equals(log.UserRole, role, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            query = query.Where(log => string.Equals(log.Action, action, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(log => log.Timestamp >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(log => log.Timestamp <= to.Value);
+        }
+
+        var filtered = query.OrderByDescending(log => log.Timestamp).ToList();
+        var currentPage = page <= 0 ? 1 : page;
+        var currentPageSize = pageSize <= 0 ? 20 : pageSize;
+        var paged = filtered.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToList();
+        return Task.FromResult((paged, (long)filtered.Count));
+    }
+
+    public Task<List<AuditLog>> GetAllAsync() => Task.FromResult(_state.AuditLogs.OrderByDescending(log => log.Timestamp).ToList());
+}
+public sealed class TrackingAuditService : IAuditService
 {
     private readonly IntegrationTestState _state;
 
@@ -228,6 +303,16 @@ internal sealed class TrackingAuditService : IAuditService
     public Task LogAsync(string userId, string role, string action, string? documentId, string description)
     {
         _state.AuditEntries.Add((userId, action, documentId, description));
+        _state.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid().ToString(),
+            Timestamp = DateTime.UtcNow,
+            UserId = userId,
+            UserRole = role,
+            Action = action,
+            DocumentId = documentId ?? string.Empty,
+            Description = description
+        });
         return Task.CompletedTask;
     }
 
@@ -247,7 +332,7 @@ internal sealed class TrackingAuditService : IAuditService
         Task.FromResult(new List<AuditLogDto>());
 }
 
-internal sealed class TrackingIndexingService : IIndexingService
+public sealed class TrackingIndexingService : IIndexingService
 {
     private readonly IntegrationTestState _state;
 
@@ -423,7 +508,7 @@ internal sealed class TrackingIndexingService : IIndexingService
     }
 }
 
-internal sealed class TrackingNotificationService : INotificationService
+public sealed class TrackingNotificationService : INotificationService
 {
     private readonly IntegrationTestState _state;
 
@@ -467,7 +552,7 @@ internal sealed class TrackingNotificationService : INotificationService
     }
 }
 
-internal sealed class RecordingEmailService : IEmailService
+public sealed class RecordingEmailService : IEmailService
 {
     private readonly IntegrationTestState _state;
 
@@ -483,10 +568,11 @@ internal sealed class RecordingEmailService : IEmailService
     }
 }
 
-internal sealed class TestPasswordHasher : IPasswordHasher
+public sealed class TestPasswordHasher : IPasswordHasher
 {
     public string Hash(string password) => $"test-hash::{password}";
 
     public bool Verify(string password, string hashedPassword) =>
         string.Equals(Hash(password), hashedPassword, StringComparison.Ordinal);
 }
+

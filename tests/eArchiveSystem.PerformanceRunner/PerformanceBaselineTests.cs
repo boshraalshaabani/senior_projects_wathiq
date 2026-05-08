@@ -51,6 +51,14 @@ public class PerformanceBaselineTests
 
         await WarmupAsync(factory, anonymousClient, managerClient, manager);
 
+        var loginSamples = await MeasureManyAsync(
+            options.LoginIterations,
+            _ => MeasureLoginLatencyAsync(anonymousClient, manager));
+
+        var dashboardSamples = await MeasureManyAsync(
+            options.DashboardIterations,
+            _ => MeasureDashboardLatencyAsync(managerClient));
+
         var ocrCallbackSamples = await MeasureManyAsync(
             options.OcrIterations,
             iteration => MeasureOcrCallbackAsync(factory, anonymousClient, manager, iteration));
@@ -68,14 +76,18 @@ public class PerformanceBaselineTests
             GeneratedAtUtc = DateTime.UtcNow,
             Environment = "In-memory ASP.NET Core host",
             SearchDatasetSize = options.SearchDatasetSize,
+            LoginIterations = options.LoginIterations,
+            DashboardIterations = options.DashboardIterations,
             OcrIterations = options.OcrIterations,
             SearchIterations = options.SearchIterations,
             SearchableAfterCallbackIterations = options.SearchableAfterCallbackIterations,
             Metrics =
             [
+                BuildMetric("Login latency", "POST /api/auth/login", loginSamples),
+                BuildMetric("Dashboard totals latency", "GET /api/dashboard/totals", dashboardSamples),
+                BuildMetric("Search latency", "POST /api/documents/search", searchSamples),
                 BuildMetric("OCR callback persistence", "POST /api/ocr/callback", ocrCallbackSamples),
-                BuildMetric("Callback to searchable", "OCR callback + first successful search hit", searchableAfterCallbackSamples),
-                BuildMetric("Search latency", "POST /api/documents/search", searchSamples)
+                BuildMetric("Callback to searchable", "OCR callback + first successful search hit", searchableAfterCallbackSamples)
             ]
         };
 
@@ -92,7 +104,7 @@ public class PerformanceBaselineTests
                 $"{metric.Name}: avg {metric.AverageMs:N2} ms | p95 {metric.P95Ms:N2} ms | max {metric.MaxMs:N2} ms");
         }
 
-        Assert.Equal(3, report.Metrics.Count);
+        Assert.Equal(5, report.Metrics.Count);
         Assert.All(report.Metrics, metric =>
         {
             Assert.True(metric.Iterations > 0);
@@ -105,24 +117,45 @@ public class PerformanceBaselineTests
 
     private static string ResolveOutputDirectory()
     {
+        var repositoryRoot = FindRepositoryRoot();
         var configured = Environment.GetEnvironmentVariable("WATHIQ_PERFORMANCE_OUTPUT");
         if (!string.IsNullOrWhiteSpace(configured))
         {
+            if (Path.IsPathRooted(configured))
+            {
+                return configured;
+            }
+
+            if (!string.IsNullOrWhiteSpace(repositoryRoot))
+            {
+                return Path.GetFullPath(Path.Combine(repositoryRoot, configured));
+            }
+
             return Path.GetFullPath(configured);
         }
 
+        if (!string.IsNullOrWhiteSpace(repositoryRoot))
+        {
+            return Path.Combine(repositoryRoot, "artifacts", "performance");
+        }
+
+        return Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "performance");
+    }
+
+    private static string? FindRepositoryRoot()
+    {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
         {
             if (Directory.Exists(Path.Combine(current.FullName, ".github")))
             {
-                return Path.Combine(current.FullName, "artifacts", "performance");
+                return current.FullName;
             }
 
             current = current.Parent;
         }
 
-        return Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "performance");
+        return null;
     }
 
     private static async Task WarmupAsync(
@@ -131,6 +164,8 @@ public class PerformanceBaselineTests
         HttpClient managerClient,
         User manager)
     {
+        await MeasureLoginLatencyAsync(anonymousClient, manager);
+        await MeasureDashboardLatencyAsync(managerClient);
         await MeasureOcrCallbackAsync(factory, anonymousClient, manager, -1);
         await MeasureSearchLatencyAsync(managerClient);
         await MeasureSearchableAfterCallbackAsync(factory, anonymousClient, managerClient, manager, -2);
@@ -170,6 +205,30 @@ public class PerformanceBaselineTests
             state.Documents[document.Id] = document;
             state.IndexedDocumentIds.Add(document.Id);
         }
+    }
+
+    private static async Task<double> MeasureLoginLatencyAsync(HttpClient anonymousClient, User manager)
+    {
+        var started = Stopwatch.GetTimestamp();
+
+        var response = await anonymousClient.PostAsJsonAsync("/api/auth/login", new LoginDto
+        {
+            Email = manager.Email,
+            Password = "Pass123!"
+        });
+
+        response.EnsureSuccessStatusCode();
+        return Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+    }
+
+    private static async Task<double> MeasureDashboardLatencyAsync(HttpClient managerClient)
+    {
+        var started = Stopwatch.GetTimestamp();
+
+        var response = await managerClient.GetAsync("/api/dashboard/totals");
+
+        response.EnsureSuccessStatusCode();
+        return Stopwatch.GetElapsedTime(started).TotalMilliseconds;
     }
 
     private static async Task<double> MeasureOcrCallbackAsync(
@@ -359,6 +418,8 @@ public class PerformanceBaselineTests
             $"- Generated at: `{report.GeneratedAtUtc:O}`",
             $"- Environment: `{report.Environment}`",
             $"- Search dataset size: `{report.SearchDatasetSize}` documents",
+            $"- Login iterations: `{report.LoginIterations}`",
+            $"- Dashboard iterations: `{report.DashboardIterations}`",
             $"- OCR iterations: `{report.OcrIterations}`",
             $"- Search iterations: `{report.SearchIterations}`",
             $"- Searchable-after-callback iterations: `{report.SearchableAfterCallbackIterations}`",
@@ -372,14 +433,27 @@ public class PerformanceBaselineTests
         lines.AddRange(report.Metrics.Select(metric =>
             $"| {metric.Name} | {metric.Scenario} | {metric.AverageMs:N2} | {metric.MedianMs:N2} | {metric.P95Ms:N2} | {metric.MinMs:N2} | {metric.MaxMs:N2} |"));
 
+        var rankedMetrics = report.Metrics.OrderByDescending(metric => metric.AverageMs).ToList();
+        var slowestMetric = rankedMetrics.First();
+
+        lines.Add(string.Empty);
+        lines.Add("## Bottleneck Focus");
+        lines.Add(string.Empty);
+        lines.Add($"- Current slowest scenario in this baseline: `{slowestMetric.Name}` with average `{slowestMetric.AverageMs:N2} ms` and p95 `{slowestMetric.P95Ms:N2} ms`.");
+        lines.Add("- Ranking by average latency:");
+        lines.AddRange(rankedMetrics.Select((metric, index) =>
+            $"  {index + 1}. {metric.Name} - avg {metric.AverageMs:N2} ms | p95 {metric.P95Ms:N2} ms"));
+
         lines.Add(string.Empty);
         lines.Add("## Interpretation");
         lines.Add(string.Empty);
         lines.Add("- This baseline measures API/controller/service latency inside the in-memory ASP.NET Core test host.");
         lines.Add("- It is ideal for regression tracking on the `Testing` branch, not for claiming production SLA values.");
+        lines.Add("- `Login latency` reflects credential validation and token generation cost.");
+        lines.Add("- `Dashboard totals latency` reflects aggregation work over repositories and audit history.");
+        lines.Add("- `Search latency` reflects role-aware query handling over a seeded searchable corpus.");
         lines.Add("- `OCR callback persistence` reflects how quickly the API stores OCR text and triggers indexing.");
         lines.Add("- `Callback to searchable` reflects how quickly a processed document becomes discoverable through search.");
-        lines.Add("- `Search latency` reflects role-aware query handling over a seeded searchable corpus.");
 
         return string.Join(Environment.NewLine, lines);
     }
@@ -387,6 +461,8 @@ public class PerformanceBaselineTests
 
 internal sealed class PerformanceBaselineOptions
 {
+    public int LoginIterations { get; init; } = 20;
+    public int DashboardIterations { get; init; } = 20;
     public int OcrIterations { get; init; } = 25;
     public int SearchIterations { get; init; } = 50;
     public int SearchableAfterCallbackIterations { get; init; } = 20;
@@ -398,6 +474,8 @@ internal sealed class PerformanceReport
     public DateTime GeneratedAtUtc { get; init; }
     public string Environment { get; init; } = string.Empty;
     public int SearchDatasetSize { get; init; }
+    public int LoginIterations { get; init; }
+    public int DashboardIterations { get; init; }
     public int OcrIterations { get; init; }
     public int SearchIterations { get; init; }
     public int SearchableAfterCallbackIterations { get; init; }
@@ -415,3 +493,4 @@ internal sealed class PerformanceMetric
     public double MinMs { get; init; }
     public double MaxMs { get; init; }
 }
+

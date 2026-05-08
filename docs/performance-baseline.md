@@ -2,10 +2,7 @@
 
 ## Purpose
 
-This baseline focuses on the two runtime experiences users feel directly in Wathiq:
-
-1. how quickly OCR callback processing persists extracted text
-2. how quickly documents can be found through role-aware search
+This baseline focuses on the runtime paths that users feel directly in Wathiq and that are most useful for spotting regressions on the `Testing` branch.
 
 ## Runner
 
@@ -17,17 +14,25 @@ The repository includes a local performance smoke runner:
 
 ## What It Measures
 
-1. `OCR callback persistence`
-   - Endpoint: `POST /api/ocr/callback`
-   - Measures how quickly OCR text is stored and indexing is triggered
+1. `Login latency`
+   - Endpoint: `POST /api/auth/login`
+   - Measures credential validation and token generation cost
 
-2. `Callback to searchable`
-   - Flow: OCR callback followed by repeated search checks until the document appears
-   - Measures how fast a processed document becomes discoverable
+2. `Dashboard totals latency`
+   - Endpoint: `GET /api/dashboard/totals`
+   - Measures aggregation work over documents, users, and audit data
 
 3. `Search latency`
    - Endpoint: `POST /api/documents/search`
    - Measures role-aware search handling over a seeded corpus
+
+4. `OCR callback persistence`
+   - Endpoint: `POST /api/ocr/callback`
+   - Measures how quickly OCR text is stored and indexing is triggered
+
+5. `Callback to searchable`
+   - Flow: OCR callback followed by repeated search checks until the document appears
+   - Measures how fast a processed document becomes discoverable
 
 ## How To Run
 
@@ -55,4 +60,6 @@ The runner writes two files under `artifacts/performance`:
 
 - The runner uses the in-memory ASP.NET Core test host, so it is ideal for regression tracking.
 - The results are not meant to represent production SLA values.
-- Use these metrics to compare code changes on the `Testing` branch and to detect slowdowns in OCR callback or search behavior.
+- The markdown report includes a `Bottleneck Focus` section that ranks the measured scenarios by average latency.
+- Use that ranking to identify which path is currently slowest before optimizing.
+- In the current local baseline, `Dashboard totals latency` is the slowest measured path, which suggests the dashboard aggregation flow is the best first optimization candidate.

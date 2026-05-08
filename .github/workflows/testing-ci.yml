@@ -50,7 +50,7 @@ jobs:
         if: steps.gitleaks.outcome == 'failure'
         run: exit 1
 
-  build-and-unit-test:
+  build-and-test:
     name: Build and Test
     needs: secret-scan
     runs-on: ubuntu-latest
@@ -90,9 +90,51 @@ jobs:
             TestResults/**/*.trx
             TestResults/**/coverage.cobertura.xml
 
+  frontend-e2e:
+    name: Frontend E2E
+    needs: build-and-test
+    if: github.ref_name == 'Testing' || github.base_ref == 'Testing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: wathiq-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: wathiq-frontend
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: wathiq-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run frontend E2E tests
+        working-directory: wathiq-frontend
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-e2e
+          path: |
+            wathiq-frontend/playwright-report/
+            wathiq-frontend/test-results/
+
   staging-preview:
     name: Staging Preview Package
-    needs: build-and-unit-test
+    needs: build-and-test
     if: github.ref_name == 'Testing' || github.base_ref == 'Testing'
     runs-on: ubuntu-latest
     steps:
@@ -121,7 +163,7 @@ jobs:
 
   performance-baseline:
     name: Performance Baseline
-    needs: build-and-unit-test
+    needs: build-and-test
     if: github.ref_name == 'Testing' || github.base_ref == 'Testing'
     runs-on: ubuntu-latest
     steps:
