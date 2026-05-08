@@ -49,6 +49,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<IDocumentRepository>();
             services.RemoveAll<IMetadataRepository>();
             services.RemoveAll<IDepartmentRepository>();
+            services.RemoveAll<IAuditRepository>();
             services.RemoveAll<IAuditService>();
             services.RemoveAll<IEmailService>();
             services.RemoveAll<IIndexingService>();
@@ -62,6 +63,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<IDocumentRepository, InMemoryDocumentRepository>();
             services.AddSingleton<IMetadataRepository, InMemoryMetadataRepository>();
             services.AddSingleton<IDepartmentRepository, InMemoryDepartmentRepository>();
+            services.AddSingleton<IAuditRepository, InMemoryAuditRepository>();
             services.AddSingleton<IAuditService, TrackingAuditService>();
             services.AddSingleton<IEmailService, RecordingEmailService>();
             services.AddSingleton<IIndexingService, TrackingIndexingService>();
@@ -135,3 +137,4 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
             $"Could not locate the eArchiveSystem content root from base directory '{AppContext.BaseDirectory}'.");
     }
 }
+
